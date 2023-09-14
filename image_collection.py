@@ -62,7 +62,7 @@ def extract_eye(frame, left, face_cascade, eye_cascade):
     faces = face_cascade.detectMultiScale(
         gray,
         minNeighbors=10,
-        minSize=(200, 200),
+        minSize=(100, 100),
         flags=cv2.CASCADE_SCALE_IMAGE
     )
 

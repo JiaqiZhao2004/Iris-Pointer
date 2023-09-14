@@ -4,7 +4,7 @@ import sys
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
 
-video_capture = cv2.VideoCapture(0)
+video_capture = cv2.VideoCapture(1)
 
 while True:
     # Capture frame-by-frame
@@ -30,7 +30,7 @@ while True:
 
         eyes = eyeCascade.detectMultiScale(
             frame[ny: ny + nh, nx: nx + nw],
-            minNeighbors=10
+            # minNeighbors=10
         )
         # draw a rectangle around eyes
         for (ex, ey, ew, eh) in eyes:

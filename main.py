@@ -21,13 +21,22 @@ eye_bl = extract_eye(frame=image_bl, left=LEFT, face_cascade=faceCascade, eye_ca
 eye_br = extract_eye(frame=image_br, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)
 
 # plotting
-fig, ax = plt.subplots(2, 2)
-ax[0, 0].imshow(eye_ul)
-ax[0, 1].imshow(eye_ur)
-ax[1, 0].imshow(eye_bl)
-ax[1, 1].imshow(eye_br)
-ax[0, 0].set_title("upper left")
-ax[0, 1].set_title("upper right")
-ax[1, 0].set_title("lower left")
-ax[1, 1].set_title("lower right")
-plt.show()
+# fig, ax = plt.subplots(2, 2)
+# ax[0, 0].imshow(eye_ul)
+# ax[0, 1].imshow(eye_ur)
+# ax[1, 0].imshow(eye_bl)
+# ax[1, 1].imshow(eye_br)
+# ax[0, 0].set_title("upper left")
+# ax[0, 1].set_title("upper right")
+# ax[1, 0].set_title("lower left")
+# ax[1, 1].set_title("lower right")
+# plt.show()
+
+
+# fig, ax = plt.subplots(4, 4)
+# for i in range(4):
+#     for j in range(4):
+#         ax[i, j].imshow(cv2.threshold(eye_ul, 48 + 6 * (4 * i + j), 255, cv2.THRESH_BINARY_INV)[1])
+#         ax[i, j].set_title(48 + 6 * (4 * i + j))
+#
+# plt.show()
