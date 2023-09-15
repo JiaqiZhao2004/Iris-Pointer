@@ -1,9 +1,11 @@
 from helen_dataset_into_list import data_into_list
 import torch
-# import torch.nn as nn
-# import torch.nn.functional as F
-# import numpy as np
-# import matplotlib.pyplot as plt
+import torch.nn as nn
+# noinspection PyPep8Naming
+import torch.nn.functional as F
+import numpy as np
+import matplotlib.pyplot as plt
+from torchvision import models
 from torch.utils.data import Dataset, DataLoader
 from image_collection import extract_eye
 import cv2
@@ -11,6 +13,9 @@ import cv2
 import albumentations as A
 from tqdm import tqdm
 
+DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+VERBOSE = False
+BATCH_SIZE = 16
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
 
@@ -21,14 +26,12 @@ train_data = data_into_list(image_dir, annotation_dir)
 test_data = train_data[int(0.9 * len(train_data)):]
 train_data = train_data[:int(0.9 * len(train_data))]
 
-
 resize_transform = A.Compose([
     A.LongestMaxSize(1024),
     A.PadIfNeeded(min_width=1024),
     A.PadIfNeeded(min_width=2048),
     # A.PadIfNeeded(min_height=2048),
 ], keypoint_params=A.KeypointParams(format='xy'))
-
 
 train_transforms = A.Compose([
     A.Resize(height=128, width=128),
@@ -59,8 +62,9 @@ class HelenEyeDataset(Dataset):
                 ],
                 ...]
         """
-        # print(index)
-        # print(self.data[index][0])
+        if VERBOSE:
+            print(index)
+            print(self.data[index][0])
 
         image = cv2.imread(self.data[index][0])
         if self.left:
@@ -71,7 +75,7 @@ class HelenEyeDataset(Dataset):
         resized = self.resize(image=image, keypoints=key_points)
         image = resized['image']
         key_points = [list(ele) for ele in resized['keypoints']]
-        eye_crop, x_bleed, y_bleed = self.eye_extractor(image, left=self.left, face_cascade=faceCascade, eye_cascade=eyeCascade)
+        eye_crop, x_bleed, y_bleed = self.eye_extractor(image, left=self.left, face_cascade=faceCascade, eye_cascade=eyeCascade, verbose=VERBOSE)
         for index in range(len(key_points)):  # shift position of label points
             key_points[index][0] -= x_bleed
             key_points[index][1] -= y_bleed
@@ -79,18 +83,24 @@ class HelenEyeDataset(Dataset):
         eye_crop = transformed['image']
         key_points = [list(ele) for ele in transformed['keypoints']]
 
+        target = []
+        for i in range(len(key_points)):
+            target.append(key_points[i][0])
+            target.append(key_points[i][1])
         eye_crop = torch.tensor(eye_crop)
-        key_points = torch.tensor(key_points)
-        return eye_crop, key_points, image
+        target = torch.tensor(target) / 128.0
+        target = target.to(torch.float32)
+        return eye_crop, target, image
 
     def __len__(self):
         return len(self.data)
 
 
 train_dataset = HelenEyeDataset(data=train_data, transform=train_transforms, resize=resize_transform)
-train_loader = DataLoader(dataset=train_dataset, batch_size=16, shuffle=False)
+train_loader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 test_dataset = HelenEyeDataset(data=test_data, transform=test_transforms, resize=resize_transform)
 test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
+
 
 # iterator = iter(train_loader)
 # eyes, labels, images = next(iterator)
@@ -107,7 +117,88 @@ test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
 # plt.show()
 
 # train eye model
-loop = tqdm(train_loader)
-for (i, (eye, label, img)) in enumerate(loop):
-    pass
-# #ValueError: Expected x for keypoint (90.67617391193983, 76.1610401357508, 0.0, 0.0) to be in the range [0.0, 62], got 90.67617391193983.
+
+class EyeKeyPointsDetector(nn.Module):
+    def __init__(self, out_features=40):
+        super().__init__()
+        self.resnet = models.resnet34()
+        self.linear1 = nn.Linear(in_features=1000, out_features=out_features)
+
+    def forward(self, x):
+        x = x / 255.0
+        # x = self.conv(x)
+        x = self.resnet(x)
+        x = torch.flatten(x, start_dim=1)
+        x = self.linear1(x)
+        return x
+
+
+def get_model(weights_path=None):
+    model = EyeKeyPointsDetector()
+    if weights_path:
+        state_dict = torch.load(weights_path)
+        model.load_state_dict(state_dict)
+
+    return model
+
+
+WEIGHT_PATH = None
+NUM_EPOCHS = 30
+eye_key_points_detector = get_model(WEIGHT_PATH)
+eye_key_points_detector.to(DEVICE)
+
+
+def train_one_epoch(model, optim, data_loader, epoch_index, device=DEVICE):
+    print("Epoch {}".format(epoch_index + 1))
+    model.train()
+    loop = tqdm(data_loader)
+    total_loss = []
+    for (i, (eyes, labels, _)) in enumerate(loop):
+        eyes = torch.permute(eyes, [0, 3, 1, 2])
+        eyes = eyes.to(device)
+        labels = labels.to(device)
+        outputs = model(eyes)
+        loss = F.mse_loss(outputs, labels)
+
+        total_loss.append(loss.item())
+        loop.set_postfix({"Training Loss=": sum(total_loss) / (i + 1)})
+
+        optim.zero_grad()
+        loss.backward()
+        optim.step()
+    return sum(total_loss) / len(total_loss)
+
+
+def evaluate(model, data_loader, device=DEVICE):
+    model.eval()
+    loop = tqdm(data_loader)
+    total_loss = []
+    for (i, (eye, label, _)) in enumerate(loop):
+        with torch.no_grad():
+            eye = torch.permute(eye, [0, 3, 1, 2])
+            eye = eye.to(device)
+            label = label.to(device)
+            output = model(eye)
+            loss = F.mse_loss(output, label)
+
+            total_loss.append(loss.item())
+            loop.set_postfix({"Validation Loss=": sum(total_loss) / (i + 1)})
+    return sum(total_loss) / len(total_loss)
+
+
+params = [p for p in eye_key_points_detector.parameters() if p.requires_grad]
+optimizer = torch.optim.SGD(params, lr=0.001, momentum=0.9, weight_decay=0.0005)
+lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.3)
+
+min_evaluation_loss = 1e9
+
+for epoch in range(NUM_EPOCHS):
+    train_loss = train_one_epoch(model=eye_key_points_detector, optim=optimizer, data_loader=train_loader, device=DEVICE, epoch_index=epoch)
+    lr_scheduler.step()
+    print("Evaluation")
+    evaluation_loss = evaluate(model=eye_key_points_detector, data_loader=test_loader, device=DEVICE)
+    if evaluation_loss < min_evaluation_loss:
+        min_evaluation_loss = min(min_evaluation_loss, evaluation_loss)
+        # Save model weights after training
+        print("Saving Weights...")
+        torch.save(eye_key_points_detector.state_dict(), 'weights/keypoints_rcnn_weights_epoch={}_loss={}.pth'.format(epoch + 1, round(evaluation_loss, 5)))

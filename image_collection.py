@@ -57,7 +57,7 @@ def take_corner_image(corner, camera_code):
     return image
 
 
-def extract_eye(frame, left, face_cascade, eye_cascade):
+def extract_eye(frame, left, face_cascade, eye_cascade, verbose=False):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = []
     test_min_neighbors = [0, 1, 2, 3, 4, 5, 10, 15, 20, 50, 80, 100, 0]
@@ -76,7 +76,8 @@ def extract_eye(frame, left, face_cascade, eye_cascade):
                 minSize=(100, 100),
                 flags=cv2.CASCADE_SCALE_IMAGE
             )
-            print("Detected {} face(s) at min_neighbors = {}".format(len(faces), min_neighbors))
+            if verbose:
+                print("Detected {} face(s) at min_neighbors = {}".format(len(faces), min_neighbors))
             break
 
     for (x, y, w, h) in faces:
@@ -102,7 +103,8 @@ def extract_eye(frame, left, face_cascade, eye_cascade):
                     eye_detecting_frame,
                     minNeighbors=test_min_neighbors[i - 1]
                 )
-                print("Detected {} eye(s) at min_neighbors = {}".format(len(eyes), test_min_neighbors[i - 1]))
+                if verbose:
+                    print("Detected {} eye(s) at min_neighbors = {}".format(len(eyes), test_min_neighbors[i - 1]))
                 break
 
         if len(eyes) > 0:
@@ -119,6 +121,7 @@ def extract_eye(frame, left, face_cascade, eye_cascade):
                 # ret, binary = cv2.threshold(eye1, 60, 255, cv2.THRESH_BINARY_INV)
                 return eye, nx + ex - int(x_left * ew), ny + ey - int(((1 + x_left + x_right) * ew - eh) / 2)
         else:
-            print("No eye detected")
+            if verbose:
+                print("No eye detected")
             eye = eye_detecting_frame
             return eye, nx, ny
