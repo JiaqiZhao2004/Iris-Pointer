@@ -20,7 +20,6 @@ while True:
     )
 
     for (x, y, w, h) in faces:
-
         nx = int(x + 0.1 * w)
         nw = int(0.4 * w)
         ny = int(y + 0.2 * h)
@@ -30,14 +29,13 @@ while True:
 
         eyes = eyeCascade.detectMultiScale(
             frame[ny: ny + nh, nx: nx + nw],
-            # minNeighbors=10
+            minNeighbors=30
         )
         # draw a rectangle around eyes
         for (ex, ey, ew, eh) in eyes:
-            cv2.rectangle(frame, (nx + ex, ny + ey), (nx + ex + ew, ny + ey + eh), (0, 255, 255), 2)
-
-            eye1 = gray[ny + ey: ny + ey + eh, nx + ex: nx + ex + ew]
-            ret, binary = cv2.threshold(eye1, 60, 255, cv2.THRESH_BINARY_INV)
+            cv2.rectangle(frame, (nx + ex - int(0.15 * ew), ny + ey - int((1.3 * ew - eh) // 2)), (nx + ex + int(1.2 * ew), ny + ey + eh + int((1.3 * ew - eh) // 2)), (0, 255, 255), 2)
+            # eye1 = gray[ny + ey: ny + ey + eh, nx + ex: nx + ex + ew]
+            # ret, binary = cv2.threshold(eye1, 60, 255, cv2.THRESH_BINARY_INV)
             # cv2.imshow('Video', binary)
 
     # Display the resulting frame

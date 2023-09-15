@@ -15,22 +15,22 @@ image_bl = take_corner_image(corner='bl', camera_code=CAMERA_MODE)
 image_br = take_corner_image(corner='br', camera_code=CAMERA_MODE)
 
 # extract eye (gray image)
-eye_ul = extract_eye(frame=image_ul, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)
-eye_ur = extract_eye(frame=image_ur, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)
-eye_bl = extract_eye(frame=image_bl, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)
-eye_br = extract_eye(frame=image_br, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)
+eye_ul = extract_eye(frame=image_ul, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
+eye_ur = extract_eye(frame=image_ur, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
+eye_bl = extract_eye(frame=image_bl, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
+eye_br = extract_eye(frame=image_br, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
 
 # plotting
-# fig, ax = plt.subplots(2, 2)
-# ax[0, 0].imshow(eye_ul)
-# ax[0, 1].imshow(eye_ur)
-# ax[1, 0].imshow(eye_bl)
-# ax[1, 1].imshow(eye_br)
-# ax[0, 0].set_title("upper left")
-# ax[0, 1].set_title("upper right")
-# ax[1, 0].set_title("lower left")
-# ax[1, 1].set_title("lower right")
-# plt.show()
+fig, ax = plt.subplots(2, 2)
+ax[0, 0].imshow(eye_ul)
+ax[0, 1].imshow(eye_ur)
+ax[1, 0].imshow(eye_bl)
+ax[1, 1].imshow(eye_br)
+ax[0, 0].set_title("upper left")
+ax[0, 1].set_title("upper right")
+ax[1, 0].set_title("lower left")
+ax[1, 1].set_title("lower right")
+plt.show()
 
 
 # fig, ax = plt.subplots(4, 4)
