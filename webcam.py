@@ -29,7 +29,7 @@ while True:
 
         eyes = eyeCascade.detectMultiScale(
             frame[ny: ny + nh, nx: nx + nw],
-            minNeighbors=30
+            minNeighbors=0
         )
         # draw a rectangle around eyes
         for (ex, ey, ew, eh) in eyes:

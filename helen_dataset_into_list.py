@@ -23,6 +23,7 @@ def data_into_list(image_dir, annotation_dir, a=math.e * 100):
                 for j in range(2):
                     f[i][j] = float(f[i][j])
                 f[i][1] -= height / a  # !!! y direction offset
+                f[i][0] -= width / a  # !!! x direction offset
                 right_eye_coordinates.append(f[i])
             for i in range(115 + 20, 115 + 40):
                 f[i] = f[i][:-1]  # remove \n
@@ -30,6 +31,7 @@ def data_into_list(image_dir, annotation_dir, a=math.e * 100):
                 for j in range(2):
                     f[i][j] = float(f[i][j])
                 f[i][1] -= height / a  # !!! y direction offset
+                f[i][0] -= width / a  # !!! x direction offset
                 left_eye_coordinates.append(f[i])
             labels.append([os.path.join(image_dir, f[0]), left_eye_coordinates, right_eye_coordinates])
     return labels
