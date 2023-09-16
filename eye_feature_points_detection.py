@@ -1,3 +1,5 @@
+import random
+
 from helen_dataset_into_list import data_into_list
 import torch
 import torch.nn as nn
@@ -15,12 +17,12 @@ from tqdm import tqdm
 from model import get_model
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-VERBOSE = False
+VERBOSE = True
 BATCH_SIZE = 16
-WEIGHT_PATH = "weights/resnet_34_2linear_epoch=13_loss=0.00622.pth"
+WEIGHT_PATH = "weights/resnet_34_2linear_1epoch=13+1_loss=0.00449.pth"
 NUM_EPOCHS = 50
-COMPLETED = 0
-
+COMPLETED = 1
+# 111168419_1
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
 
@@ -38,11 +40,10 @@ resize_transform = A.Compose([
 
 train_transforms = A.Compose([
     A.LongestMaxSize(256),
-    A.PadIfNeeded(min_height=310, min_width=310, border_mode=cv2.BORDER_REPLICATE),
-    A.RandomSizedCrop(min_max_height=(256, 256), height=256, width=256)
-    # A.GaussianBlur(),
-    # A.ColorJitter(),
-    # A.GridDropout(ratio=0.3)
+    A.Resize(height=random.randint(130, 270), width=random.randint(200, 300)),
+    A.PadIfNeeded(min_height=random.randint(256, 270), min_width=random.randint(256, 270), border_mode=cv2.BORDER_REPLICATE),
+    A.GaussianBlur(),
+    A.ColorJitter(),
 ], keypoint_params=A.KeypointParams(format='xy'))
 
 test_transforms = A.Compose([
@@ -84,7 +85,7 @@ class HelenEyeDataset(Dataset):
         resized = self.resize(image=image, keypoints=key_points)
         image = resized['image']
         key_points = [list(ele) for ele in resized['keypoints']]
-        eye_crop, x_bleed, y_bleed = self.eye_extractor(image, left=self.left, face_cascade=faceCascade, eye_cascade=eyeCascade, verbose=VERBOSE)
+        eye_crop, x_bleed, y_bleed = self.eye_extractor(image, left=self.left, face_cascade=faceCascade, verbose=VERBOSE)
         for index in range(len(key_points)):  # shift position of label points
             key_points[index][0] -= x_bleed
             key_points[index][1] -= y_bleed

@@ -57,7 +57,7 @@ def take_corner_image(corner, camera_code):
     return image
 
 
-def extract_eye(frame, left, face_cascade, eye_cascade, verbose=False, expansion=0.5):
+def extract_eye(frame, left, face_cascade, verbose=False):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = []
     test_min_neighbors = [0, 1, 2, 3, 4, 5, 10, 15, 20, 50, 80, 100, 0]

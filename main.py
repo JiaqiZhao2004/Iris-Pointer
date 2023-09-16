@@ -4,12 +4,13 @@ import torch
 import albumentations as A
 from image_collection import take_corner_image, extract_eye
 from model import get_model
+from PIL import Image
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 CAMERA_MODE = 1
 SIZE = 256
 LEFT = True
-WEIGHT_PATH = "weights/resnet_34_2linear_epoch=13_loss=0.00622.pth"
+WEIGHT_PATH = "weights/resnet_34_2linear_1epoch=13+44_loss=0.00468.pth"
 
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
@@ -23,21 +24,20 @@ image_br = take_corner_image(corner='br', camera_code=CAMERA_MODE)
 # extract eye (gray image)
 resize_and_pad = A.Compose([
     A.LongestMaxSize(SIZE),
-    A.PadIfNeeded(min_height=SIZE, min_width=SIZE, border_mode=cv2.BORDER_REPLICATE),
+    # A.PadIfNeeded(min_height=SIZE, min_width=SIZE, border_mode=cv2.BORDER_REPLICATE),
     # A.GaussianBlur(),
     # A.ColorJitter(),
     # A.GridDropout(ratio=0.3)
 ])
 
-eye_ul = extract_eye(frame=image_ul, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
-eye_ur = extract_eye(frame=image_ur, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
-eye_bl = extract_eye(frame=image_bl, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
-eye_br = extract_eye(frame=image_br, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
+eye_ul = extract_eye(frame=image_ul, left=LEFT, face_cascade=faceCascade)[0]
+eye_ur = extract_eye(frame=image_ur, left=LEFT, face_cascade=faceCascade)[0]
+eye_bl = extract_eye(frame=image_bl, left=LEFT, face_cascade=faceCascade)[0]
+eye_br = extract_eye(frame=image_br, left=LEFT, face_cascade=faceCascade)[0]
 eye_ul = resize_and_pad(image=eye_ul)['image']
 eye_ur = resize_and_pad(image=eye_ur)['image']
 eye_bl = resize_and_pad(image=eye_bl)['image']
 eye_br = resize_and_pad(image=eye_br)['image']
-
 
 # plotting
 fig, ax = plt.subplots(2, 2)
