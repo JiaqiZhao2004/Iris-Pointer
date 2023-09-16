@@ -57,7 +57,7 @@ def take_corner_image(corner, camera_code):
     return image
 
 
-def extract_eye(frame, left, face_cascade, eye_cascade, verbose=False):
+def extract_eye(frame, left, face_cascade, eye_cascade, verbose=False, expansion=0.5):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = []
     test_min_neighbors = [0, 1, 2, 3, 4, 5, 10, 15, 20, 50, 80, 100, 0]
@@ -112,7 +112,7 @@ def extract_eye(frame, left, face_cascade, eye_cascade, verbose=False):
                 # print("Eye position ",
                 #       (nx + ex - int(0.3 * ew), ny + ey - int((1.3 * ew - eh) // 2)),
                 #       (nx + ex + int(1.3 * ew), ny + ey + eh + int((1.3 * ew - eh) // 2)))
-                x_left = 1.6
+                x_left = expansion
                 x_right = x_left
                 eye = frame[
                       ny + ey - int(((1 + x_left + x_right) * ew - eh) / 2)   : ny + ey + eh + int(((1 + x_left + x_right) * ew - eh) / 2),
@@ -121,7 +121,6 @@ def extract_eye(frame, left, face_cascade, eye_cascade, verbose=False):
                 # ret, binary = cv2.threshold(eye1, 60, 255, cv2.THRESH_BINARY_INV)
                 return eye, nx + ex - int(x_left * ew), ny + ey - int(((1 + x_left + x_right) * ew - eh) / 2)
         else:
-            if verbose:
-                print("No eye detected")
+            print("No eye detected")
             eye = eye_detecting_frame
             return eye, nx, ny

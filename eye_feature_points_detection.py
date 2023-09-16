@@ -12,10 +12,15 @@ import cv2
 # noinspection PyPep8Naming
 import albumentations as A
 from tqdm import tqdm
+from model import get_model
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 VERBOSE = False
 BATCH_SIZE = 16
+WEIGHT_PATH = "weights/resnet_34_2linear_epoch=13_loss=0.00622.pth"
+NUM_EPOCHS = 50
+COMPLETED = 0
+
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
 
@@ -34,7 +39,7 @@ resize_transform = A.Compose([
 ], keypoint_params=A.KeypointParams(format='xy'))
 
 train_transforms = A.Compose([
-    A.Resize(height=128, width=128),
+    A.Resize(height=256, width=256),
     # A.GaussianBlur(),
     # A.ColorJitter(),
     # A.GridDropout(ratio=0.3)
@@ -118,38 +123,12 @@ test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
 
 # train eye model
 
-class EyeKeyPointsDetector(nn.Module):
-    def __init__(self, out_features=40):
-        super().__init__()
-        self.resnet = models.resnet34()
-        self.linear1 = nn.Linear(in_features=1000, out_features=out_features)
-
-    def forward(self, x):
-        x = x / 255.0
-        # x = self.conv(x)
-        x = self.resnet(x)
-        x = torch.flatten(x, start_dim=1)
-        x = self.linear1(x)
-        return x
-
-
-def get_model(weights_path=None):
-    model = EyeKeyPointsDetector()
-    if weights_path:
-        state_dict = torch.load(weights_path)
-        model.load_state_dict(state_dict)
-
-    return model
-
-
-WEIGHT_PATH = None
-NUM_EPOCHS = 30
 eye_key_points_detector = get_model(WEIGHT_PATH)
 eye_key_points_detector.to(DEVICE)
 
 
 def train_one_epoch(model, optim, data_loader, epoch_index, device=DEVICE):
-    print("Epoch {}".format(epoch_index + 1))
+    print("Epoch {}".format(COMPLETED + epoch_index + 1))
     model.train()
     loop = tqdm(data_loader)
     total_loss = []
@@ -201,4 +180,4 @@ for epoch in range(NUM_EPOCHS):
         min_evaluation_loss = min(min_evaluation_loss, evaluation_loss)
         # Save model weights after training
         print("Saving Weights...")
-        torch.save(eye_key_points_detector.state_dict(), 'weights/keypoints_rcnn_weights_epoch={}_loss={}.pth'.format(epoch + 1, round(evaluation_loss, 5)))
+        torch.save(eye_key_points_detector.state_dict(), 'weights/resnet_34_2linear_1epoch=13+{}_loss={}.pth'.format(COMPLETED + epoch + 1, round(evaluation_loss, 5)))

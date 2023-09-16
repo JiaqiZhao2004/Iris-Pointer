@@ -3,7 +3,6 @@ import sys
 
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
-
 video_capture = cv2.VideoCapture(1)
 
 while True:
@@ -34,9 +33,10 @@ while True:
         # draw a rectangle around eyes
         for (ex, ey, ew, eh) in eyes:
             cv2.rectangle(frame, (nx + ex - int(0.15 * ew), ny + ey - int((1.3 * ew - eh) // 2)), (nx + ex + int(1.2 * ew), ny + ey + eh + int((1.3 * ew - eh) // 2)), (0, 255, 255), 2)
-            # eye1 = gray[ny + ey: ny + ey + eh, nx + ex: nx + ex + ew]
+            eye1 = frame[ny + ey: ny + ey + eh, nx + ex: nx + ex + ew]
             # ret, binary = cv2.threshold(eye1, 60, 255, cv2.THRESH_BINARY_INV)
             # cv2.imshow('Video', binary)
+
 
     # Display the resulting frame
     cv2.imshow('Video', frame)  # entire frame

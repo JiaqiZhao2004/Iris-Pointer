@@ -1,9 +1,15 @@
 import cv2
 import matplotlib.pyplot as plt
+import torch
+import albumentations as A
 from image_collection import take_corner_image, extract_eye
+from model import get_model
 
+DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 CAMERA_MODE = 1
-LEFT = False
+SIZE = 256
+LEFT = True
+WEIGHT_PATH = "weights/resnet_34_2linear_epoch=13_loss=0.00622.pth"
 
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
@@ -15,10 +21,16 @@ image_bl = take_corner_image(corner='bl', camera_code=CAMERA_MODE)
 image_br = take_corner_image(corner='br', camera_code=CAMERA_MODE)
 
 # extract eye (gray image)
+resize_transform_128 = A.Resize(height=SIZE, width=SIZE)
 eye_ul = extract_eye(frame=image_ul, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
 eye_ur = extract_eye(frame=image_ur, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
 eye_bl = extract_eye(frame=image_bl, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
 eye_br = extract_eye(frame=image_br, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
+eye_ul = resize_transform_128(image=eye_ul)['image']
+eye_ur = resize_transform_128(image=eye_ur)['image']
+eye_bl = resize_transform_128(image=eye_bl)['image']
+eye_br = resize_transform_128(image=eye_br)['image']
+
 
 # plotting
 fig, ax = plt.subplots(2, 2)
@@ -30,6 +42,13 @@ ax[0, 0].set_title("upper left")
 ax[0, 1].set_title("upper right")
 ax[1, 0].set_title("lower left")
 ax[1, 1].set_title("lower right")
+
+# Eye keypoint detection
+model = get_model(WEIGHT_PATH)
+model.to(DEVICE)
+keypoints_ul = model(torch.tensor(eye_ul, dtype=torch.float32).permute([2, 0, 1]).unsqueeze(0).to(DEVICE)).cpu().detach().numpy()[0] * SIZE
+for i in range(20):
+    ax[0, 0].scatter(keypoints_ul[2 * i], keypoints_ul[2 * i + 1])
 plt.show()
 
 
