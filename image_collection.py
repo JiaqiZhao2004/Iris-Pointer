@@ -88,39 +88,40 @@ def extract_eye(frame, left, face_cascade, eye_cascade, verbose=False, expansion
         nw = int(0.5 * w)
         ny = int(y + 0.2 * h)
         nh = int(0.3 * h)
-        eyes = []
+        # eyes = []
         eye_detecting_frame = frame[ny: ny + nh, nx: nx + nw]
-        # cv2.rectangle(frame, (nx, ny), (nx + nw, ny + nh), (0, 255, 0), 2)  # draw rect around ROI
-        test_min_neighbors = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 25, 30, 35, 40, 0]
-        for i in range(len(test_min_neighbors)):
-            min_neighbors = test_min_neighbors[i]
-            eyes = eye_cascade.detectMultiScale(
-                eye_detecting_frame,
-                minNeighbors=min_neighbors
-            )
-            if len(eyes) == 0 or i == len(test_min_neighbors) - 2:
-                eyes = eye_cascade.detectMultiScale(
-                    eye_detecting_frame,
-                    minNeighbors=test_min_neighbors[i - 1]
-                )
-                if verbose:
-                    print("Detected {} eye(s) at min_neighbors = {}".format(len(eyes), test_min_neighbors[i - 1]))
-                break
+        return eye_detecting_frame, nx, ny
+        # # cv2.rectangle(frame, (nx, ny), (nx + nw, ny + nh), (0, 255, 0), 2)  # draw rect around ROI
+        # test_min_neighbors = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 25, 30, 35, 40, 0]
+        # for i in range(len(test_min_neighbors)):
+        #     min_neighbors = test_min_neighbors[i]
+        #     eyes = eye_cascade.detectMultiScale(
+        #         eye_detecting_frame,
+        #         minNeighbors=min_neighbors
+        #     )
+        #     if len(eyes) == 0 or i == len(test_min_neighbors) - 2:
+        #         eyes = eye_cascade.detectMultiScale(
+        #             eye_detecting_frame,
+        #             minNeighbors=test_min_neighbors[i - 1]
+        #         )
+        #         if verbose:
+        #             print("Detected {} eye(s) at min_neighbors = {}".format(len(eyes), test_min_neighbors[i - 1]))
+        #         break
 
-        if len(eyes) > 0:
-            for (ex, ey, ew, eh) in eyes:
-                # print("Eye position ",
-                #       (nx + ex - int(0.3 * ew), ny + ey - int((1.3 * ew - eh) // 2)),
-                #       (nx + ex + int(1.3 * ew), ny + ey + eh + int((1.3 * ew - eh) // 2)))
-                x_left = expansion
-                x_right = x_left
-                eye = frame[
-                      ny + ey - int(((1 + x_left + x_right) * ew - eh) / 2)   : ny + ey + eh + int(((1 + x_left + x_right) * ew - eh) / 2),
-                      nx + ex - int(x_left * ew)               : nx + ex + int((1 + x_right) * ew)
-                      ]
-                # ret, binary = cv2.threshold(eye1, 60, 255, cv2.THRESH_BINARY_INV)
-                return eye, nx + ex - int(x_left * ew), ny + ey - int(((1 + x_left + x_right) * ew - eh) / 2)
-        else:
-            print("No eye detected")
-            eye = eye_detecting_frame
-            return eye, nx, ny
+        # if len(eyes) > 0:
+        #     for (ex, ey, ew, eh) in eyes:
+        #         # print("Eye position ",
+        #         #       (nx + ex - int(0.3 * ew), ny + ey - int((1.3 * ew - eh) // 2)),
+        #         #       (nx + ex + int(1.3 * ew), ny + ey + eh + int((1.3 * ew - eh) // 2)))
+        #         x_left = expansion
+        #         x_right = x_left
+        #         eye = frame[
+        #               ny + ey - int(((1 + x_left + x_right) * ew - eh) / 2)   : ny + ey + eh + int(((1 + x_left + x_right) * ew - eh) / 2),
+        #               nx + ex - int(x_left * ew)               : nx + ex + int((1 + x_right) * ew)
+        #               ]
+        #         # ret, binary = cv2.threshold(eye1, 60, 255, cv2.THRESH_BINARY_INV)
+        #         return eye, nx + ex - int(x_left * ew), ny + ey - int(((1 + x_left + x_right) * ew - eh) / 2)
+        # else:
+        #     print("No eye detected")
+        #     eye = eye_detecting_frame
+        #     return eye, nx, ny

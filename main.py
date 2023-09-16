@@ -21,15 +21,22 @@ image_bl = take_corner_image(corner='bl', camera_code=CAMERA_MODE)
 image_br = take_corner_image(corner='br', camera_code=CAMERA_MODE)
 
 # extract eye (gray image)
-resize_transform_128 = A.Resize(height=SIZE, width=SIZE)
+resize_and_pad = A.Compose([
+    A.LongestMaxSize(SIZE),
+    A.PadIfNeeded(min_height=SIZE, min_width=SIZE, border_mode=cv2.BORDER_REPLICATE),
+    # A.GaussianBlur(),
+    # A.ColorJitter(),
+    # A.GridDropout(ratio=0.3)
+])
+
 eye_ul = extract_eye(frame=image_ul, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
 eye_ur = extract_eye(frame=image_ur, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
 eye_bl = extract_eye(frame=image_bl, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
 eye_br = extract_eye(frame=image_br, left=LEFT, face_cascade=faceCascade, eye_cascade=eyeCascade)[0]
-eye_ul = resize_transform_128(image=eye_ul)['image']
-eye_ur = resize_transform_128(image=eye_ur)['image']
-eye_bl = resize_transform_128(image=eye_bl)['image']
-eye_br = resize_transform_128(image=eye_br)['image']
+eye_ul = resize_and_pad(image=eye_ul)['image']
+eye_ur = resize_and_pad(image=eye_ur)['image']
+eye_bl = resize_and_pad(image=eye_bl)['image']
+eye_br = resize_and_pad(image=eye_br)['image']
 
 
 # plotting

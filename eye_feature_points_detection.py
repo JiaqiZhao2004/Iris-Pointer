@@ -33,20 +33,24 @@ train_data = train_data[:int(0.9 * len(train_data))]
 
 resize_transform = A.Compose([
     A.LongestMaxSize(1024),
-    A.PadIfNeeded(min_width=1024),
-    A.PadIfNeeded(min_width=2048),
-    # A.PadIfNeeded(min_height=2048),
+    A.PadIfNeeded(min_height=1024, min_width=1024),
 ], keypoint_params=A.KeypointParams(format='xy'))
 
 train_transforms = A.Compose([
-    A.Resize(height=256, width=256),
+    A.LongestMaxSize(256),
+    A.PadIfNeeded(min_height=310, min_width=310, border_mode=cv2.BORDER_REPLICATE),
+    A.RandomSizedCrop(min_max_height=(256, 256), height=256, width=256)
     # A.GaussianBlur(),
     # A.ColorJitter(),
     # A.GridDropout(ratio=0.3)
 ], keypoint_params=A.KeypointParams(format='xy'))
 
 test_transforms = A.Compose([
-    A.Resize(height=128, width=128),
+    A.LongestMaxSize(256),
+    A.PadIfNeeded(min_height=256, min_width=256, border_mode=cv2.BORDER_REPLICATE),
+    # A.GaussianBlur(),
+    # A.ColorJitter(),
+    # A.GridDropout(ratio=0.3)
 ], keypoint_params=A.KeypointParams(format='xy'))
 
 
@@ -93,7 +97,7 @@ class HelenEyeDataset(Dataset):
             target.append(key_points[i][0])
             target.append(key_points[i][1])
         eye_crop = torch.tensor(eye_crop)
-        target = torch.tensor(target) / 128.0
+        target = torch.tensor(target) / 256
         target = target.to(torch.float32)
         return eye_crop, target, image
 
@@ -109,15 +113,14 @@ test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
 
 # iterator = iter(train_loader)
 # eyes, labels, images = next(iterator)
-#
 # fig, ax = plt.subplots(4, 4)
 # for i in range(4):
 #     for j in range(4):
 #         eye1 = eyes[i*4+j]
-#         label1 = labels[i*4+j]
+#         label1 = labels[i*4+j] * 256
 #         ax[i, j].imshow(eye1.numpy())
-#         for k in range(len(label1)):
-#             ax[i, j].scatter(label1[k][0], label1[k][1])
+#         for k in range(20):
+#             ax[i, j].scatter(label1[2 * k], label1[2 * k + 1])
 #
 # plt.show()
 
