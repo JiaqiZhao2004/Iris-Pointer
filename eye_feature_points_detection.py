@@ -2,12 +2,10 @@ import random
 
 from helen_dataset_into_list import data_into_list
 import torch
-import torch.nn as nn
 # noinspection PyPep8Naming
 import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
-from torchvision import models
 from torch.utils.data import Dataset, DataLoader
 from image_collection import extract_eye
 import cv2
@@ -15,16 +13,16 @@ import cv2
 import albumentations as A
 from tqdm import tqdm
 from model import get_model
+from albumentations.augmentations.geometric.transforms import PadIfNeeded
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-VERBOSE = True
-BATCH_SIZE = 16
-WEIGHT_PATH = "weights/resnet_34_2linear_1epoch=13+1_loss=0.00449.pth"
+VERBOSE = False
+BATCH_SIZE = 8
+WEIGHT_PATH = None
+# WEIGHT_PATH = "weights/resnet_34_2linear_1epoch=13+44_loss=0.00468.pth"
 NUM_EPOCHS = 50
-COMPLETED = 1
-# 111168419_1
+COMPLETED = 0
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
-eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
 
 image_dir = "helen_dataset/img"
 annotation_dir = "helen_dataset/annotation"
@@ -40,18 +38,18 @@ resize_transform = A.Compose([
 
 train_transforms = A.Compose([
     A.LongestMaxSize(256),
-    A.Resize(height=random.randint(130, 270), width=random.randint(200, 300)),
-    A.PadIfNeeded(min_height=random.randint(256, 270), min_width=random.randint(256, 270), border_mode=cv2.BORDER_REPLICATE),
-    A.GaussianBlur(),
-    A.ColorJitter(),
+    A.Resize(height=random.randint(50, 256), width=256),
+    A.PadIfNeeded(min_height=random.choice([0, 300]), min_width=random.choice([0, 300]), position=PadIfNeeded.PositionType.TOP_LEFT,
+                  border_mode=cv2.BORDER_REPLICATE, p=0.5),
+    A.PadIfNeeded(min_height=random.choice([0, 300]), min_width=random.choice([0, 300]), position=PadIfNeeded.PositionType.BOTTOM_RIGHT,
+                  border_mode=cv2.BORDER_REPLICATE, p=1),
+    A.PadIfNeeded(min_height=300, min_width=300, position=PadIfNeeded.PositionType.TOP_LEFT,
+                  border_mode=cv2.BORDER_REPLICATE),
 ], keypoint_params=A.KeypointParams(format='xy'))
 
 test_transforms = A.Compose([
     A.LongestMaxSize(256),
-    A.PadIfNeeded(min_height=256, min_width=256, border_mode=cv2.BORDER_REPLICATE),
-    # A.GaussianBlur(),
-    # A.ColorJitter(),
-    # A.GridDropout(ratio=0.3)
+    A.PadIfNeeded(min_height=300, min_width=300, border_mode=cv2.BORDER_REPLICATE),
 ], keypoint_params=A.KeypointParams(format='xy'))
 
 
@@ -111,19 +109,31 @@ train_loader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=
 test_dataset = HelenEyeDataset(data=test_data, transform=test_transforms, resize=resize_transform)
 test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
 
-
-# iterator = iter(train_loader)
+# iterator = iter(test_loader)
 # eyes, labels, images = next(iterator)
-# fig, ax = plt.subplots(4, 4)
-# for i in range(4):
+# fig, ax = plt.subplots(2, 4)
+# for i in range(2):
 #     for j in range(4):
 #         eye1 = eyes[i*4+j]
 #         label1 = labels[i*4+j] * 256
 #         ax[i, j].imshow(eye1.numpy())
-#         for k in range(20):
+#         for k in range(4):
+#             ax[i, j].scatter(label1[2 * k], label1[2 * k + 1])
+#
+#
+# eye_key_points_detector = get_model(WEIGHT_PATH)
+# eye_key_points_detector.to(DEVICE)
+# eyes = torch.permute(eyes, [0, 3, 1, 2])
+# eyes = eyes.to(DEVICE)
+# output = eye_key_points_detector(eyes)
+# for i in range(2):
+#     for j in range(4):
+#         label1 = labels[i*4+j] * 256
+#         for k in range(4):
 #             ax[i, j].scatter(label1[2 * k], label1[2 * k + 1])
 #
 # plt.show()
+
 
 # train eye model
 
@@ -184,4 +194,4 @@ for epoch in range(NUM_EPOCHS):
         min_evaluation_loss = min(min_evaluation_loss, evaluation_loss)
         # Save model weights after training
         print("Saving Weights...")
-        torch.save(eye_key_points_detector.state_dict(), 'weights/resnet_34_2linear_1epoch=13+{}_loss={}.pth'.format(COMPLETED + epoch + 1, round(evaluation_loss, 5)))
+        torch.save(eye_key_points_detector.state_dict(), 'weights/4_points_resnet34_linear_1000_epoch={}_loss={}.pth'.format(COMPLETED + epoch + 1, round(evaluation_loss, 5)))

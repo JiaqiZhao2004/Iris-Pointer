@@ -6,7 +6,7 @@ import torch
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
 video_capture = cv2.VideoCapture(1)
-model = get_model("weights/resnet_34_2linear_1epoch=13+44_loss=0.00468.pth")
+model = get_model("weights/resnet_34_2linear_2000_epoch=13+44+4_loss=0.10069.pth")
 model.to('cpu')
 
 

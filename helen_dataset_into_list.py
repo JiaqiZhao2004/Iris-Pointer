@@ -17,7 +17,7 @@ def data_into_list(image_dir, annotation_dir, a=math.e * 100):
         if f[0] in images:
             (width, height) = Image.open(os.path.join(image_dir, f[0])).size
             # np.array()
-            for i in range(115, 115 + 20):
+            for i in [115, 115+10, 115+5, 115+15]:
                 f[i] = f[i][:-1]  # remove \n
                 f[i] = f[i].split(" , ")
                 for j in range(2):
@@ -25,7 +25,7 @@ def data_into_list(image_dir, annotation_dir, a=math.e * 100):
                 f[i][1] -= height / a  # !!! y direction offset
                 f[i][0] -= width / a  # !!! x direction offset
                 right_eye_coordinates.append(f[i])
-            for i in range(115 + 20, 115 + 40):
+            for i in [135, 135+10, 135+5, 135+15]:
                 f[i] = f[i][:-1]  # remove \n
                 f[i] = f[i].split(" , ")
                 for j in range(2):
