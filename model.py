@@ -7,16 +7,16 @@ class EyeKeyPointsDetector(nn.Module):
     def __init__(self, out_features=8):
         super().__init__()
         self.resnet = models.resnet34()
-        # self.linear1 = nn.LazyLinear(out_features=1000)
-        self.linear2 = nn.Linear(in_features=1000, out_features=out_features)
+        self.linear1 = nn.LazyLinear(out_features=1000)
+        self.linear_end = nn.Linear(in_features=1000, out_features=out_features)
 
     def forward(self, x):
         x = x / 255.0
         # x = self.conv(x)
         x = self.resnet(x)
         x = torch.flatten(x, start_dim=1)
-        # x = self.linear1(x)
-        x = self.linear2(x)
+        x = self.linear1(x)
+        x = self.linear_end(x)
         return x
 
 

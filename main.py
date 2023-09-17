@@ -10,7 +10,7 @@ DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 CAMERA_MODE = 1
 SIZE = 256
 LEFT = True
-WEIGHT_PATH = "weights/resnet_34_2linear_1epoch=13+44+1_loss=0.11767.pth"
+WEIGHT_PATH = "weights/New Folder With Items/4_points_resnet34_linear_1000_epoch=5_loss=0.01118.pth"
 
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
@@ -23,17 +23,14 @@ image_br = take_corner_image(corner='br', camera_code=CAMERA_MODE)
 
 # extract eye (gray image)
 resize_and_pad = A.Compose([
-    A.LongestMaxSize(SIZE),
-    # A.PadIfNeeded(min_height=SIZE, min_width=SIZE, border_mode=cv2.BORDER_REPLICATE),
-    # A.GaussianBlur(),
-    # A.ColorJitter(),
-    # A.GridDropout(ratio=0.3)
+    A.LongestMaxSize(100),
+    A.PadIfNeeded(min_height=300, min_width=300, border_mode=cv2.BORDER_REPLICATE, position=A.PadIfNeeded.PositionType.BOTTOM_LEFT),
 ])
 
-eye_ul = extract_eye(frame=image_ul, left=LEFT, face_cascade=faceCascade)[0]
-eye_ur = extract_eye(frame=image_ur, left=LEFT, face_cascade=faceCascade)[0]
-eye_bl = extract_eye(frame=image_bl, left=LEFT, face_cascade=faceCascade)[0]
-eye_br = extract_eye(frame=image_br, left=LEFT, face_cascade=faceCascade)[0]
+eye_ul, nx_ul, ny_ul, nw_ul, nh_ul = extract_eye(frame=image_ul, left=LEFT, face_cascade=faceCascade)
+eye_ur, nx_ur, ny_ur, nw_ur, nh_ur = extract_eye(frame=image_ur, left=LEFT, face_cascade=faceCascade)
+eye_bl, nx_bl, ny_bl, nw_bl, nh_bl = extract_eye(frame=image_bl, left=LEFT, face_cascade=faceCascade)
+eye_br, nx_br, ny_br, nw_br, nh_br = extract_eye(frame=image_br, left=LEFT, face_cascade=faceCascade)
 eye_ul = resize_and_pad(image=eye_ul)['image']
 eye_ur = resize_and_pad(image=eye_ur)['image']
 eye_bl = resize_and_pad(image=eye_bl)['image']
@@ -53,9 +50,10 @@ ax[1, 1].set_title("lower right")
 # Eye keypoint detection
 model = get_model(WEIGHT_PATH)
 model.to(DEVICE)
-keypoints_ul = model(torch.tensor(eye_ul, dtype=torch.float32).permute([2, 0, 1]).unsqueeze(0).to(DEVICE)).cpu().detach().numpy()[0] * SIZE
-for i in range(20):
-    ax[0, 0].scatter(keypoints_ul[2 * i], keypoints_ul[2 * i + 1])
+keypoints_ul = model(torch.tensor(eye_ul, dtype=torch.float32).permute([2, 0, 1]).unsqueeze(0).to(DEVICE)).cpu().detach().numpy()[0]
+print(keypoints_ul)
+for i in range(4):
+    ax[0, 0].scatter(int(keypoints_ul[2 * i] * 300), int((keypoints_ul[2 * i + 1] * 300))),
 plt.show()
 
 
