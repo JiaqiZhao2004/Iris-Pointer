@@ -5,20 +5,21 @@ from torchvision import models
 
 
 class EyeKeyPointsDetector(nn.Module):
-    def __init__(self, out_features=8):
+    def __init__(self, out_features=16):
         super().__init__()
-        self.hrnet = hrnet.hrnet_w18()
+        # self.hrnet = hrnet.hrnet_w30()
         self.resnet = models.resnet18()
-        self.linear1 = nn.LazyLinear(out_features=8)
-        self.linear_end = nn.Linear(in_features=40, out_features=out_features)
+        self.linear1 = nn.LazyLinear(out_features=16)
+        self.linear_end = nn.LazyLinear(out_features=out_features)
 
     def forward(self, x):
         x = x / 255.0
         # x = self.conv(x)
-        x = self.hrnet(x)
+        x = self.resnet(x)
+        # x = self.hrnet(x)
         x = torch.flatten(x, start_dim=1)
-        x = self.linear1(x)
-        # x = self.linear_end(x)
+        # x = self.linear1(x)
+        x = self.linear_end(x)
         return x
 
 

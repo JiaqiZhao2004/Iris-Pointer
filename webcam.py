@@ -12,7 +12,7 @@ import albumentations as A
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
 video_capture = cv2.VideoCapture(1)
-model = get_model("weights/New Folder With Items/4_points_resnet34_linear_1000_epoch=32_loss=0.05105.pth")
+model = get_model("weights/eye only/4_points_resnet34_linear_1000_epoch=32_loss=0.05105.pth")
 model.to('cpu')
 
 test_transforms = A.Compose([

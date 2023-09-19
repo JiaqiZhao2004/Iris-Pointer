@@ -10,7 +10,7 @@ DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 CAMERA_MODE = 1
 SIZE = 256
 LEFT = True
-WEIGHT_PATH = "weights/New Folder With Items/4_points_resnet34_linear_1000_epoch=5_loss=0.01118.pth"
+WEIGHT_PATH = "weights/eye only/4_points_resnet34_linear_1000_epoch=5_loss=0.01118.pth"
 
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
