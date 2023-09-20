@@ -1,4 +1,2 @@
-import matplotlib.pyplot as plt
-
-plt.semilogy([0.128, 0.0731, 0.0471, 0.0407, 0.0452, 0.0414, 0.0399, 0.0396, 0.0427, 0.0389, 0.0393, 0.0399, 0.0396, 0.0411, 0.04])
-plt.show()
+import mediapipe as mp
+from mediapipe.python.solutions import face_mesh

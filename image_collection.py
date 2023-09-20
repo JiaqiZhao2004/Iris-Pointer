@@ -81,16 +81,19 @@ def extract_eye(frame, left, face_cascade, verbose=False):
             break
 
     for (x, y, w, h) in faces:
-        if left:
-            nx = int(x + 0.1 * w)
-        else:
-            nx = int(x + 0.4 * w)
-        nw = int(0.5 * w)
-        ny = int(y + 0.2 * h)
-        nh = int(0.3 * h)
+        # if left:
+        #     nx = int(x + 0.1 * w)
+        # else:
+        #     nx = int(x + 0.4 * w)
+        # nw = int(0.5 * w)
+        # ny = int(y + 0.2 * h)
+        # nh = int(0.3 * h)
         # eyes = []
-        eye_detecting_frame = frame[ny: ny + nh, nx: nx + nw]
-        return eye_detecting_frame, nx, ny, nw, nh
+        x_min = x
+        x_max = x + w
+        y_min = y
+        y_max = y + h
+        return x_min, x_max, y_min, y_max
         # # cv2.rectangle(frame, (nx, ny), (nx + nw, ny + nh), (0, 255, 0), 2)  # draw rect around ROI
         # test_min_neighbors = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 20, 25, 30, 35, 40, 0]
         # for i in range(len(test_min_neighbors)):
@@ -125,3 +128,4 @@ def extract_eye(frame, left, face_cascade, verbose=False):
         #     print("No eye detected")
         #     eye = eye_detecting_frame
         #     return eye, nx, ny
+    return 0, gray.shape[0], 0, gray.shape[1]
