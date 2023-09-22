@@ -18,18 +18,19 @@ WEIGHT_PATH = None
 
 
 
-SAVING_NAME = "weights/4_points_alexnet_linear_1_sigmoid"
-TRAINING = False
-TRAINING_FOR_1_BATCH = True
-# WEIGHT_PATH = "weights/4_points_resnet18_linear_2_epoch=200_loss=0.04217.pth"
-NUM_EPOCHS = 200
-COMPLETED = 0
+SAVING_NAME = "weights/4_points_resnet18_linear_1_small_img"
+TRAINING = True
+TRAINING_FOR_1_BATCH = False
+WEIGHT_PATH = "weights/4_points_resnet18_linear_1_small_img_epoch=276_loss=0.00013.pth"
+COMPLETED = 276
+NUM_EPOCHS = 400 - COMPLETED
+
 
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 VERBOSE = False
-BATCH_SIZE = 8
-LAST_LOSS = 1e9
+BATCH_SIZE = 32
+LAST_LOSS = 0.00014
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 
 image_dir = "helen_dataset/img"
@@ -40,33 +41,21 @@ test_data = train_data[int(0.9 * len(train_data)):]
 train_data = train_data[:int(0.9 * len(train_data))]
 
 resize_transform = A.Compose([
-    # A.Resize(512, 512),
-    A.LongestMaxSize(1024),
-    A.PadIfNeeded(min_height=1024, min_width=1024, position=PadIfNeeded.PositionType.CENTER,
+    A.ToGray(),
+    A.LongestMaxSize(512),
+    A.PadIfNeeded(min_height=512, min_width=512, position=PadIfNeeded.PositionType.CENTER,
                   border_mode=cv2.BORDER_REPLICATE),
-    # A.SmallestMaxSize(800),
-    # A.RandomSizedCrop(min_max_height=(800, 800), width=512, height=512),
 ], keypoint_params=A.KeypointParams(format='xy'))
 
 train_transforms = A.Compose([
-    # A.LongestMaxSize(256),
-    # A.Resize(height=random.choice([30, 60, 100, 256]), width=256),
-    # A.PadIfNeeded(min_height=120, min_width=256, position=PadIfNeeded.PositionType.CENTER,
-    #               border_mode=cv2.BORDER_REPLICATE, p=1),
-    # A.PadIfNeeded(min_height=random.choice([0, 300]), min_width=random.choice([0, 300]), position=PadIfNeeded.PositionType.TOP_LEFT,
-    #               border_mode=cv2.BORDER_REPLICATE, p=0.5),
-    # A.PadIfNeeded(min_height=random.choice([0, 300]), min_width=random.choice([0, 300]), position=PadIfNeeded.PositionType.BOTTOM_RIGHT,
-    #               border_mode=cv2.BORDER_REPLICATE, p=1),
-    # A.PadIfNeeded(min_height=300, min_width=300, position=PadIfNeeded.PositionType.TOP_LEFT,
-    #               border_mode=cv2.BORDER_REPLICATE),
-    # A.Blur(),
-    A.Resize(height=512, width=512)
+    A.Blur(),
+    A.Rotate(25, always_apply=True, border_mode=cv2.BORDER_REPLICATE, rotate_method="largest_box"),
+    A.RandomBrightnessContrast(),
+    A.Resize(height=128, width=128)
 ], keypoint_params=A.KeypointParams(format='xy'))
 
 test_transforms = A.Compose([
-    A.LongestMaxSize(256),
-    A.PadIfNeeded(min_height=300, min_width=300, border_mode=cv2.BORDER_REPLICATE, position=PadIfNeeded.PositionType.CENTER),
-    A.Resize(height=256, width=256)
+    A.Resize(height=128, width=128)
 ], keypoint_params=A.KeypointParams(format='xy'))
 
 
@@ -95,16 +84,17 @@ class HelenEyeDataset(Dataset):
         key_points = self.data[index][1] + self.data[index][2]
         resized = self.resize(image=image, keypoints=key_points)
         image = resized['image']
-        key_points = [list(ele) for ele in resized['keypoints']]
+        key_points = resized['keypoints']
         x_min, x_max, y_min, y_max = self.eye_extractor(image, left=self.left, face_cascade=faceCascade, verbose=VERBOSE)
         crop = A.Compose([
             A.Crop(x_min, y_min, x_max, y_max),
-            A.Resize(512, 512)
         ], keypoint_params=A.KeypointParams(format='xy'))
-
         transformed = crop(image=image, keypoints=key_points)
         face_crop = transformed['image']
-        key_points = [list(ele) for ele in transformed['keypoints']]
+        key_points = transformed['keypoints']
+        face_crop_transformed = self.transform(image=face_crop, keypoints=key_points)
+        face_crop = face_crop_transformed['image']
+        key_points = [list(ele) for ele in face_crop_transformed['keypoints']]
 
         target = []
         for i in range(len(key_points)):
@@ -121,7 +111,7 @@ class HelenEyeDataset(Dataset):
 
 train_dataset = HelenEyeDataset(data=train_data, transform=train_transforms, resize=resize_transform)
 train_loader = DataLoader(dataset=train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-test_dataset = HelenEyeDataset(data=test_data, transform=None, resize=resize_transform)
+test_dataset = HelenEyeDataset(data=test_data, transform=test_transforms, resize=resize_transform)
 test_loader = DataLoader(dataset=test_dataset, batch_size=1, shuffle=False)
 
 # train eye model
@@ -168,19 +158,18 @@ def evaluate(model, data_loader, device=DEVICE):
 
 
 params = [p for p in eye_key_points_detector.parameters() if p.requires_grad]
-optimizer = torch.optim.Adam(params, lr=0.0001)
-lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.3)
+optimizer = torch.optim.Adam(params, lr=0.0000005)
+# lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.3)
 
-min_evaluation_loss = 1e9
 
 if TRAINING:
     train_history = []
     eval_history = []
-    evaluation_loss = LAST_LOSS
+    min_evaluation_loss = LAST_LOSS
     for epoch in range(NUM_EPOCHS):
         train_loss = train_one_epoch(model=eye_key_points_detector, optim=optimizer, data_loader=train_loader, device=DEVICE, epoch_index=epoch)
         train_history.append(train_loss)
-        lr_scheduler.step()
+        # lr_scheduler.step()
         print("Evaluation")
         evaluation_loss = evaluate(model=eye_key_points_detector, data_loader=test_loader, device=DEVICE)
         eval_history.append(evaluation_loss)
@@ -195,7 +184,7 @@ if TRAINING:
 
 if TRAINING_FOR_1_BATCH:
     history = []
-    loop = tqdm(range(100))
+    loop = tqdm(range(20))
     iterator = iter(train_loader)
     images, targets = next(iterator)
     for i in loop:
@@ -263,22 +252,22 @@ if not TRAINING_FOR_1_BATCH:
             ax[0, j].scatter(target1[2 * k], target1[2 * k + 1])
             ax[1, j].scatter(output1[2 * k], output1[2 * k + 1])
 
-    # test_loader = DataLoader(dataset=test_dataset, batch_size=BATCH_SIZE, shuffle=True)
-    # iterator = iter(test_loader)
-    # images, targets = next(iterator)
-    # targets = targets.cpu() * 256
-    # for j in range(4):
-    #     image1 = images[j]
-    #     ax[2, j].imshow(image1.numpy())
-    #     ax[3, j].imshow(image1.numpy())
-    # images = torch.permute(images, [0, 3, 1, 2])
-    # images = images.to(DEVICE)
-    # output = eye_key_points_detector(images).cpu().detach() * 256
-    # for j in range(4):
-    #     output1 = output[j]
-    #     target1 = targets[j]
-    #     for k in range(8):
-    #         ax[2, j].scatter(target1[2 * k], target1[2 * k + 1])
-    #         ax[3, j].scatter(output1[2 * k], output1[2 * k + 1])
-    #
+    test_loader = DataLoader(dataset=test_dataset, batch_size=BATCH_SIZE, shuffle=True)
+    iterator = iter(test_loader)
+    images, targets = next(iterator)
+    targets = targets.cpu() * 256
+    for j in range(4):
+        image1 = images[j]
+        ax[2, j].imshow(image1.numpy())
+        ax[3, j].imshow(image1.numpy())
+    images = torch.permute(images, [0, 3, 1, 2])
+    images = images.to(DEVICE)
+    output = eye_key_points_detector(images).cpu().detach() * 256
+    for j in range(4):
+        output1 = output[j]
+        target1 = targets[j]
+        for k in range(8):
+            ax[2, j].scatter(target1[2 * k], target1[2 * k + 1])
+            ax[3, j].scatter(output1[2 * k], output1[2 * k + 1])
+
     plt.show()

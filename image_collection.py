@@ -89,8 +89,10 @@ def extract_eye(frame, left, face_cascade, verbose=False):
         # ny = int(y + 0.2 * h)
         # nh = int(0.3 * h)
         # eyes = []
+        # x_min = x - int(w * 0.1) if (x - int(w * 0.1)) > 0 else 0
+        # x_max = x + int(w * 1.1)
         x_min = x
-        x_max = x + w
+        x_max = x + h
         y_min = y
         y_max = y + h
         return x_min, x_max, y_min, y_max
