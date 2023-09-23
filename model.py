@@ -7,13 +7,9 @@ from torchvision import models
 class EyeKeyPointsDetector(nn.Module):
     def __init__(self, out_features=16):
         super().__init__()
-
-        # self.hrnet = hrnet.hrnet_w30()
         self.resnet = models.resnet34()
-        # self.alexnet = models.alexnet()
         self.linear1 = nn.LazyLinear(out_features=16)
         self.linear_end = nn.LazyLinear(out_features=out_features)
-        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = x / 255.0
