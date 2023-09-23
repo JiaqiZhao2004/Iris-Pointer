@@ -9,7 +9,7 @@ class EyeKeyPointsDetector(nn.Module):
         super().__init__()
 
         # self.hrnet = hrnet.hrnet_w30()
-        self.resnet = models.resnet18()
+        self.resnet = models.resnet34()
         # self.alexnet = models.alexnet()
         self.linear1 = nn.LazyLinear(out_features=16)
         self.linear_end = nn.LazyLinear(out_features=out_features)

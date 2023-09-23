@@ -1,15 +1,13 @@
 import matplotlib.pyplot as plt
 import os
 
-log = True
-prefix = "4_points_resnet18_linear_1_small_img_"
+o = """"""
 
-
+prefix = "4_points_resnet34_linear_1_small_img_"
 train = []
 val = []
 
-if log:
-    o = """"""
+if len(o) > 0:
     o = o.split('\n')
 
     i = []
@@ -30,6 +28,7 @@ if log:
     val = [float(val[i].split("Loss==")[1].split("]")[0]) for i in range(len(val))]
     plt.semilogy(train)
     plt.semilogy(val)
+    plt.xscale('log')
 
 
 else:
@@ -43,5 +42,6 @@ else:
 
     plt.scatter(x, y)
     plt.yscale('log')
+    plt.xscale('log')
 
 plt.show()

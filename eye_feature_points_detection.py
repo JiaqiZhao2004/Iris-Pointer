@@ -18,19 +18,19 @@ WEIGHT_PATH = None
 
 
 
-SAVING_NAME = "weights/4_points_resnet18_linear_1_small_img"
+SAVING_NAME = "weights/4_points_resnet50_linear_1_small_img"
 TRAINING = True
 TRAINING_FOR_1_BATCH = False
-WEIGHT_PATH = "weights/4_points_resnet18_linear_1_small_img_epoch=276_loss=0.00013.pth"
-COMPLETED = 276
+WEIGHT_PATH = "weights/Face/Full Face Small Img/4_points_resnet50_linear_1_small_img_epoch=2_loss=0.00508805.pth"
+COMPLETED = 2
 NUM_EPOCHS = 400 - COMPLETED
-
+LR = 1e-7
 
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 VERBOSE = False
 BATCH_SIZE = 32
-LAST_LOSS = 0.00014
+LAST_LOSS = 1e9
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 
 image_dir = "helen_dataset/img"
@@ -126,8 +126,8 @@ def train_one_epoch(model, optim, data_loader, epoch_index, device=DEVICE):
     total_loss = []
     for (i, (images, targets)) in enumerate(loop):
         images = torch.permute(images, [0, 3, 1, 2])
-        images.to(device)
-        targets.to(device)
+        images = images.to(device)
+        targets = targets.to(device)
         outputs = model(images)
         loss = F.mse_loss(outputs, targets)
 
@@ -147,8 +147,8 @@ def evaluate(model, data_loader, device=DEVICE):
     for (i, (image, label)) in enumerate(loop):
         with torch.no_grad():
             image = torch.permute(image, [0, 3, 1, 2])
-            image.to(device)
-            label.to(device)
+            image = image.to(device)
+            label = label.to(device)
             output = model(image)
             loss = F.mse_loss(output, label)
 
@@ -158,7 +158,7 @@ def evaluate(model, data_loader, device=DEVICE):
 
 
 params = [p for p in eye_key_points_detector.parameters() if p.requires_grad]
-optimizer = torch.optim.Adam(params, lr=0.0000005)
+optimizer = torch.optim.Adam(params, lr=LR)
 # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.3)
 
 
@@ -177,10 +177,10 @@ if TRAINING:
             min_evaluation_loss = min(min_evaluation_loss, evaluation_loss)
             print("Saving Weights...")
             torch.save(eye_key_points_detector.state_dict(),
-                       '{}_epoch={}_loss={}.pth'.format(SAVING_NAME, COMPLETED + epoch + 1, round(evaluation_loss, 5)))
+                       '{}_epoch={}_loss={}.pth'.format(SAVING_NAME, COMPLETED + epoch + 1, round(evaluation_loss, 8)))
     print("Saving Weights...")
     torch.save(eye_key_points_detector.state_dict(),
-               '{}_epoch={}_loss={}.pth'.format(SAVING_NAME, COMPLETED + NUM_EPOCHS, round(evaluation_loss, 5)))
+               '{}_epoch={}_loss={}.pth'.format(SAVING_NAME, COMPLETED + NUM_EPOCHS, round(evaluation_loss, 8)))
 
 if TRAINING_FOR_1_BATCH:
     history = []

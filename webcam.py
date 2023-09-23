@@ -48,20 +48,19 @@ while True:
         flags=cv2.CASCADE_SCALE_IMAGE
     )
 
-    for (x, y, w, h) in faces:
-        nx = int(x + 0.1 * w)
-        nw = int(0.4 * w)
-        ny = int(y + 0.2 * h)
-        nh = int(0.3 * h)
-        print("({},{}),({},{})".format(nx, ny, nx + nw, ny + nh))
+    for (nx, ny, nw, nh) in faces:
+        # nx = int(x + 0.1 * w)
+        # nw = int(0.4 * w)
+        # ny = int(y + 0.2 * h)
+        # nh = int(0.3 * h)
+        # print("({},{}),({},{})".format(nx, ny, nx + nw, ny + nh))
 
         cv2.rectangle(frame, (nx, ny), (nx + nw, ny + nh), (0, 255, 0), 2)
         eye = frame[ny: ny + nh, nx: nx + nw]
         eye = train_transforms(image=eye)["image"]
-        eee = eye
         eye = torch.tensor(eye, dtype=torch.float32).permute([2, 0, 1]).unsqueeze(0).to('cpu')
         keypoints_ul = model(eye).cpu().detach().numpy()[0]
-        print(keypoints_ul)
+        # print(keypoints_ul)
         for i in range(4):
             # cv2.circle(frame, (int(nx + keypoints_ul[2 * i] * nw), int(ny + ((keypoints_ul[2 * i + 1] * 300 - (150 - (nh * 150) / nw)) / (300 / nw)))),
             #            radius=5, color=(0, 0, 255), thickness=-1)
