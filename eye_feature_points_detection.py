@@ -18,19 +18,19 @@ WEIGHT_PATH = None
 
 
 
-SAVING_NAME = "weights/4_points_resnet50_linear_1_small_img"
-TRAINING = True
+SAVING_NAME = "weights/contour_resnet34_linear_1_small_img"
+TRAINING = False
 TRAINING_FOR_1_BATCH = False
-WEIGHT_PATH = "weights/Face/Full Face Small Img/4_points_resnet50_linear_1_small_img_epoch=2_loss=0.00508805.pth"
-COMPLETED = 2
-NUM_EPOCHS = 400 - COMPLETED
+WEIGHT_PATH = "weights/contour_resnet34_linear_1_small_img_epoch=975_loss=8.365e-05.pth"
+COMPLETED = 451
+NUM_EPOCHS = 1000 - COMPLETED
 LR = 1e-7
 
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 VERBOSE = False
 BATCH_SIZE = 32
-LAST_LOSS = 1e9
+LAST_LOSS = 9.071e-05
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 
 image_dir = "helen_dataset/img"
@@ -212,7 +212,7 @@ if TRAINING_FOR_1_BATCH:
     for j in range(4):
         target1 = targets[j]
         output1 = output[j]
-        for k in range(8):
+        for k in range(20):
             ax[0, j].scatter(target1[2 * k], target1[2 * k + 1])
             ax[1, j].scatter(output1[2 * k], output1[2 * k + 1])
 
@@ -228,7 +228,7 @@ if TRAINING_FOR_1_BATCH:
     for j in range(4):
         target1 = targets[j]
         output1 = output[j]
-        for k in range(8):
+        for k in range(20):
             ax[2, j].scatter(target1[2 * k], target1[2 * k + 1])
             ax[3, j].scatter(output1[2 * k], output1[2 * k + 1])
     plt.show()
@@ -248,7 +248,7 @@ if not TRAINING_FOR_1_BATCH:
     for j in range(4):
         target1 = targets[j]
         output1 = output[j]
-        for k in range(8):
+        for k in range(20):
             ax[0, j].scatter(target1[2 * k], target1[2 * k + 1])
             ax[1, j].scatter(output1[2 * k], output1[2 * k + 1])
 
@@ -266,7 +266,7 @@ if not TRAINING_FOR_1_BATCH:
     for j in range(4):
         output1 = output[j]
         target1 = targets[j]
-        for k in range(8):
+        for k in range(20):
             ax[2, j].scatter(target1[2 * k], target1[2 * k + 1])
             ax[3, j].scatter(output1[2 * k], output1[2 * k + 1])
 

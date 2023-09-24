@@ -12,7 +12,7 @@ import albumentations as A
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
 video_capture = cv2.VideoCapture(1)
-model = get_model("weights/4_points_resnet34_linear_1_small_img_epoch=334_loss=7.995e-05.pth")
+model = get_model("weights/contour_resnet34_linear_1_small_img_epoch=975_loss=8.365e-05.pth")
 model.to('cpu')
 SIDE = 128
 resize_transform = A.Compose([
@@ -55,7 +55,7 @@ while True:
             eye_tensor = torch.tensor(eye, dtype=torch.float32).permute([2, 0, 1]).unsqueeze(0).to('cpu')
             keypoints_ul = model(eye_tensor).numpy()[0] * 2
         # print(keypoints_ul)
-        for i in [0, 1]:
+        for i in [0, 5, 10, 15, 20, 25, 30, 35]:
             # cv2.circle(frame, (int(nx + keypoints_ul[2 * i] * nw), int(ny + ((keypoints_ul[2 * i + 1] * 300 - (150 - (nh * 150) / nw)) / (300 / nw)))),
             #            radius=5, color=(0, 0, 255), thickness=-1)
             cv2.circle(eye, (int(keypoints_ul[2 * i] * SIDE), int(keypoints_ul[2 * i + 1] * SIDE)),
