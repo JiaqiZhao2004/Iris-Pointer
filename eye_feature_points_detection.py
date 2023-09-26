@@ -18,19 +18,19 @@ WEIGHT_PATH = None
 
 
 
-SAVING_NAME = "weights/4_points_resnet50_linear_1_small_img"
-TRAINING = True
+SAVING_NAME = "weights/4_points_resnet34_linear_1_small_img"
+TRAINING = False
 TRAINING_FOR_1_BATCH = False
-WEIGHT_PATH = "weights/Face/Full Face Small Img/4_points_resnet50_linear_1_small_img_epoch=2_loss=0.00508805.pth"
-COMPLETED = 2
-NUM_EPOCHS = 400 - COMPLETED
-LR = 1e-7
+WEIGHT_PATH = "weights/4_points_resnet34_linear_1_small_img_epoch=334_loss=7.995e-05.pth"
+COMPLETED = 334
+NUM_EPOCHS = 600 - COMPLETED
+LR = 5e-8
 
 
 DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 VERBOSE = False
-BATCH_SIZE = 32
-LAST_LOSS = 1e9
+BATCH_SIZE = 8
+LAST_LOSS = 7.995e-5
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 
 image_dir = "helen_dataset/img"
@@ -49,7 +49,7 @@ resize_transform = A.Compose([
 
 train_transforms = A.Compose([
     A.Blur(),
-    A.Rotate(25, always_apply=True, border_mode=cv2.BORDER_REPLICATE, rotate_method="largest_box"),
+    A.Rotate(30, always_apply=True, border_mode=cv2.BORDER_REPLICATE, rotate_method="largest_box"),
     A.RandomBrightnessContrast(),
     A.Resize(height=128, width=128)
 ], keypoint_params=A.KeypointParams(format='xy'))
