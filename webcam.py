@@ -5,10 +5,14 @@ from model import get_model
 import torch
 import albumentations as A
 import numpy as np
+import pyautogui as mouse
+
 MODE = "eye"  # eye, face, eye_binary, full
 LINE = True
 SIDE = 128
-STABILIZATION = 10
+FACE_STABILIZATION = 10
+EYE_STABILIZATION = 10
+PUPIL_STABILIZATION = 5
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
 
@@ -25,6 +29,8 @@ test_transforms = A.Compose([A.Resize(height=SIDE, width=SIDE)])
 print("Initializing eye and face coordinates...")
 face_coordinates = None
 eye_coordinates = None
+
+x_position_stable = 0.5
 
 while face_coordinates is None or eye_coordinates is None:
     ret, frame = video_capture.read()
@@ -52,6 +58,7 @@ while face_coordinates is None or eye_coordinates is None:
                 coord.append([int(keypoints_ul[2 * i] * SIDE), int(keypoints_ul[2 * i + 1] * SIDE)])
             eye_coordinates = np.array(coord)
 
+
 print("Detection Started")
 while True:
     ret, frame = video_capture.read()
@@ -73,8 +80,8 @@ while True:
         # cv2.rectangle(frame, (nx, ny), (nx + nw, ny + nh), (0, 255, 0), 2)
 
         # stabilization
-        face_coordinates = face_coordinates * (STABILIZATION - 1) / STABILIZATION
-        face_coordinates += np.array([nx, ny, nw, nh]) / STABILIZATION
+        face_coordinates = face_coordinates * (FACE_STABILIZATION - 1) / FACE_STABILIZATION
+        face_coordinates += np.array([nx, ny, nw, nh]) / FACE_STABILIZATION
 
         face = frame[
                int(face_coordinates[1]): int(face_coordinates[1] + face_coordinates[3]),
@@ -89,8 +96,8 @@ while True:
                 coord.append([int(keypoints_ul[2 * i] * SIDE), int(keypoints_ul[2 * i + 1] * SIDE)])
 
             # stabilization: make eye detection an x-frame-average
-            eye_coordinates = eye_coordinates * (STABILIZATION - 1) / STABILIZATION
-            eye_coordinates += np.array(coord) / STABILIZATION
+            eye_coordinates = eye_coordinates * (EYE_STABILIZATION - 1) / EYE_STABILIZATION
+            eye_coordinates += np.array(coord) / EYE_STABILIZATION
 
         to_show = frame
 
@@ -131,6 +138,7 @@ while True:
             except None:
                 pass
 
+
         if LINE:
             assert MODE in ["eye", "eye_binary"], "Line function only applicable in MODE = eye or eye_binary"
             cut_off_left = int(to_show.shape[1] * 0.15)
@@ -162,6 +170,26 @@ while True:
                 (0, 0, 255),
                 1
             )
+            ## make it drag instead of instant detection
+
+            x_left_margin = 0.5
+            x_right_margin = 0.7
+
+            x_position_on_image = vertical_accumulation.index(max(vertical_accumulation)) + cut_off_left + window_half
+            x_position = max(0, min(1, ((x_position_on_image - (to_show.shape[1] * x_left_margin)) / (to_show.shape[1] * (x_right_margin - x_left_margin)))))
+            cv2.rectangle(
+                to_show,
+                (int(to_show.shape[1] * x_left_margin), 0),
+                (int(to_show.shape[1] * x_right_margin), to_show.shape[0]),
+                (0, 0, 255),
+                1
+            )
+
+            x_position_stable = x_position_stable * (PUPIL_STABILIZATION - 1) / PUPIL_STABILIZATION
+            x_position_stable += x_position / PUPIL_STABILIZATION
+
+            mouse.moveTo((1 - x_position_stable) * mouse.size()[0], None)
+
         cv2.imshow("Video", to_show)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
