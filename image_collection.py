@@ -1,6 +1,7 @@
 import time
 import tkinter as tk
 import cv2
+import numpy as np
 
 
 class ImageCollector(tk.Frame):
@@ -57,24 +58,22 @@ def take_corner_image(corner, camera_code):
     return image
 
 
-def extract_eye(frame, left, face_cascade, verbose=False):
+def extract_face(frame, face_cascade, verbose=False):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = []
-    test_min_neighbors = [0, 1, 2, 3, 4, 5, 10, 15, 20, 50, 80, 100, 0]
+    test_min_neighbors = [5, 10, 20, 50, 100, 5]
     for i in range(len(test_min_neighbors)):
         min_neighbors = test_min_neighbors[i]
         faces = face_cascade.detectMultiScale(
             gray,
             minNeighbors=test_min_neighbors[i],
-            minSize=(100, 100),
-            flags=cv2.CASCADE_SCALE_IMAGE
+            minSize=(300, 300),
         )
         if len(faces) == 0 or i == len(test_min_neighbors) - 2:
             faces = face_cascade.detectMultiScale(
                 gray,
                 minNeighbors=test_min_neighbors[i - 1],
-                minSize=(100, 100),
-                flags=cv2.CASCADE_SCALE_IMAGE
+                minSize=(300, 300),
             )
             if verbose:
                 print("Detected {} face(s) at min_neighbors = {}".format(len(faces), min_neighbors))
@@ -130,4 +129,44 @@ def extract_eye(frame, left, face_cascade, verbose=False):
         #     print("No eye detected")
         #     eye = eye_detecting_frame
         #     return eye, nx, ny
+    print("No Face Detected")
     return 0, gray.shape[0], 0, gray.shape[1]
+
+
+def find_pupil_x_position(eye_frame):
+    cut_off_left = int(eye_frame.shape[1] * 0.3)
+    box = eye_frame[:, cut_off_left:, 2]
+    pad = 0.06
+    pad_left = int(box.shape[1] * pad)
+    pad_right = pad_left
+    box = np.pad(box, ((0, 0), (pad_left, pad_right)), 'maximum')
+
+    thresh = 0
+    for i in range(50, 255):
+        ret, binary = cv2.threshold(box, i, 255, cv2.THRESH_BINARY)
+        if ((np.array(binary) == 0) / (binary.shape[0] * binary.shape[1])).sum() >= 0.3:
+            thresh = i
+            break
+    ret, box = cv2.threshold(box, thresh, 255, cv2.THRESH_BINARY)
+
+    binary_np = (np.array(box) == 0)
+    vertical_accumulation = []
+    window_half = int(binary_np.shape[1] * pad)
+    for i in range(window_half, binary_np.shape[1] - window_half - 1):
+        vertical_accumulation.append((binary_np[:, i - window_half: i + window_half]).sum())
+
+    x_coord_on_image = vertical_accumulation.index(max(vertical_accumulation)) + cut_off_left + window_half
+    x_position = x_coord_on_image / eye_frame.shape[1]
+    return x_position
+
+
+def keypoints_to_eye_frame(frame, keypoints, face_x_min, face_x_max, face_y_min, face_y_max):
+    coord = []
+    for i in range(4):
+        coord.append([int(keypoints[2 * i] * 128), int(keypoints[2 * i + 1] * 128)])
+    coord = np.array(coord)
+    eye_frame = frame[
+              int(coord[2][1] / 128 * (face_y_max - face_y_min) + face_y_min): int(coord[3][1] / 128 * (face_y_max - face_y_min) + face_y_min),
+              int(coord[1][0] / 128 * (face_x_max - face_x_min) + face_x_min): int(coord[0][0] / 128 * (face_x_max - face_x_min) + face_x_min)
+              ]
+    return eye_frame

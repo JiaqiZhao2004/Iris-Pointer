@@ -2,7 +2,7 @@ import cv2
 import matplotlib.pyplot as plt
 import torch
 import albumentations as A
-from image_collection import take_corner_image, extract_eye
+from image_collection import take_corner_image, extract_face
 from model import get_model
 from PIL import Image
 
@@ -10,7 +10,7 @@ DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cp
 CAMERA_MODE = 1
 SIZE = 256
 LEFT = True
-WEIGHT_PATH = "weights/eye only/4_points_resnet34_linear_1000_epoch=5_loss=0.01118.pth"
+WEIGHT_PATH = "weights/4_points_resnet34_linear_1_small_img_epoch=334_loss=7.995e-05.pth"
 
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
 eyeCascade = cv2.CascadeClassifier('haar_cascade_eye.xml')
@@ -27,10 +27,11 @@ resize_and_pad = A.Compose([
     A.PadIfNeeded(min_height=300, min_width=300, border_mode=cv2.BORDER_REPLICATE, position=A.PadIfNeeded.PositionType.BOTTOM_LEFT),
 ])
 
-eye_ul, nx_ul, ny_ul, nw_ul, nh_ul = extract_eye(frame=image_ul, left=LEFT, face_cascade=faceCascade)
-eye_ur, nx_ur, ny_ur, nw_ur, nh_ur = extract_eye(frame=image_ur, left=LEFT, face_cascade=faceCascade)
-eye_bl, nx_bl, ny_bl, nw_bl, nh_bl = extract_eye(frame=image_bl, left=LEFT, face_cascade=faceCascade)
-eye_br, nx_br, ny_br, nw_br, nh_br = extract_eye(frame=image_br, left=LEFT, face_cascade=faceCascade)
+nx_ul, ny_ul, nw_ul, nh_ul = extract_face(frame=image_ul, face_cascade=faceCascade)
+nx_ur, ny_ur, nw_ur, nh_ur = extract_face(frame=image_ur, face_cascade=faceCascade)
+nx_bl, ny_bl, nw_bl, nh_bl = extract_face(frame=image_bl, face_cascade=faceCascade)
+nx_br, ny_br, nw_br, nh_br = extract_face(frame=image_br, face_cascade=faceCascade)
+
 eye_ul = resize_and_pad(image=eye_ul)['image']
 eye_ur = resize_and_pad(image=eye_ur)['image']
 eye_bl = resize_and_pad(image=eye_bl)['image']

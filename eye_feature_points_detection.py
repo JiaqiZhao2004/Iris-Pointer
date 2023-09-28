@@ -1,13 +1,10 @@
-import random
-
 from helen_dataset_into_list import data_into_list
 import torch
 # noinspection PyPep8Naming
 import torch.nn.functional as F
-import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
-from image_collection import extract_eye
+from image_collection import extract_face
 import cv2
 # noinspection PyPep8Naming
 import albumentations as A
@@ -15,7 +12,6 @@ from tqdm import tqdm
 from model import get_model
 from albumentations.augmentations.geometric.transforms import PadIfNeeded
 WEIGHT_PATH = None
-
 
 
 SAVING_NAME = "weights/4_points_resnet34_linear_1_small_img"
@@ -60,7 +56,7 @@ test_transforms = A.Compose([
 
 
 class HelenEyeDataset(Dataset):
-    def __init__(self, data, transform=None, resize=None, left=True, eye_extractor=extract_eye):
+    def __init__(self, data, transform=None, resize=None, left=True, eye_extractor=extract_face):
         super().__init__()
         self.data = data
         self.eye_extractor = eye_extractor
@@ -85,7 +81,7 @@ class HelenEyeDataset(Dataset):
         resized = self.resize(image=image, keypoints=key_points)
         image = resized['image']
         key_points = resized['keypoints']
-        x_min, x_max, y_min, y_max = self.eye_extractor(image, left=self.left, face_cascade=faceCascade, verbose=VERBOSE)
+        x_min, x_max, y_min, y_max = self.eye_extractor(image, face_cascade=faceCascade, verbose=VERBOSE)
         crop = A.Compose([
             A.Crop(x_min, y_min, x_max, y_max),
         ], keypoint_params=A.KeypointParams(format='xy'))
