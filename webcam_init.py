@@ -42,13 +42,14 @@ def initialize_webcam(face_cascade, camera_mode=1, repeat=20):
             print("Eye Anchor: ", eye_coordinates.tolist())
 
     # from corner 'xx' to x position
-    x_position_ul, distance_ul = \
-        corner_to_x_position(corner='ul', cam=camera_mode, face_cascade=face_cascade, test_transforms=test_transforms, model=model, repeat=repeat)
-    x_position_ur, distance_ur = \
-        corner_to_x_position(corner='ur', cam=camera_mode, face_cascade=face_cascade, test_transforms=test_transforms, model=model, repeat=repeat)
+    # x_position_ul, distance_ul = \
+    #     corner_to_x_position(corner='ul', cam=camera_mode, face_cascade=face_cascade, test_transforms=test_transforms, model=model, repeat=repeat)
+    # x_position_ur, distance_ur = \
+    #     corner_to_x_position(corner='ur', cam=camera_mode, face_cascade=face_cascade, test_transforms=test_transforms, model=model, repeat=repeat)
     # x_position_bl, distance_bl = \
     #     corner_to_x_position(corner='bl', cam=camera_mode, face_cascade=face_cascade, test_transforms=test_transforms, model=model, repeat=repeat)
     # x_position_br, distance_br = \
     #     corner_to_x_position(corner='br', cam=camera_mode, face_cascade=face_cascade, test_transforms=test_transforms, model=model, repeat=repeat)
-    x_position_bl, x_position_br = 0, 0
-    return x_position_ul, x_position_ur, x_position_bl, x_position_br, face_coordinates, eye_coordinates, video_capture, model, (distance_ul + distance_ur) // 2
+    x_position_mid, distance_mid = \
+        corner_to_x_position(corner='mid', cam=camera_mode, face_cascade=face_cascade, test_transforms=test_transforms, model=model, repeat=repeat)
+    return face_coordinates, eye_coordinates, video_capture, model, x_position_mid, distance_mid

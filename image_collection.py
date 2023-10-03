@@ -15,6 +15,7 @@ class ImageCollector(tk.Frame):
         self.label_ur = tk.Label(self.root, name="level_ur", text="Look at the TOP-RIGHT corner of the screen, then click 'Ready'")
         self.label_bl = tk.Label(self.root, name="level_ll", text="Look at the BOTTOM-LEFT corner of the screen, then click 'Ready'")
         self.label_br = tk.Label(self.root, name="level_lr", text="Look at the BOTTOM-RIGHT corner of the screen, then click 'Ready'")
+        self.label_mid = tk.Label(self.root, name="level_mid", text="Look directly at the CAMERA, then click 'Ready'")
         self.close_button = tk.Button(self.root, text="Ready", command=self.close)
 
     def close(self):
@@ -36,6 +37,10 @@ class ImageCollector(tk.Frame):
         self.label_br.pack()
         self.close_button.pack()
 
+    def mid(self):
+        self.label_mid.pack()
+        self.close_button.pack()
+
 
 def take_corner_image(corner, camera_code, repeat):
     root = tk.Tk()
@@ -49,6 +54,8 @@ def take_corner_image(corner, camera_code, repeat):
             image_collector.bl()
         case 'br':
             image_collector.br()
+        case 'mid':
+            image_collector.mid()
     image_collector.mainloop()
 
     cam = cv2.VideoCapture(camera_code)
@@ -140,7 +147,8 @@ def extract_face(frame, face_cascade, verbose=False):
 
 
 def find_pupil_x_position(eye_frame):
-    cut_off_left = int(eye_frame.shape[1] * 0.3)
+    # gray = eye_frame[:, :, 2]
+    cut_off_left = int(eye_frame.shape[1] * 0.15)
     box = eye_frame[:, cut_off_left:, 2]
     pad = 0.1
     pad_left = int(box.shape[1] * pad)
@@ -160,9 +168,10 @@ def find_pupil_x_position(eye_frame):
     for i in range(window_half, binary_np.shape[1] - window_half - 1):
         vertical_accumulation.append((binary_np[:, i - window_half: i + window_half]).sum())
 
-    a = vertical_accumulation.index(max(vertical_accumulation))
+    a = vertical_accumulation.index(max(vertical_accumulation)) + window_half
     x_coord_on_image = a + cut_off_left
     x_position = x_coord_on_image / eye_frame.shape[1]
+    # print("x_position = ", x_position)
     return x_position
 
 
@@ -173,10 +182,9 @@ def keypoints_to_eye_frame(frame, keypoints, face_x_min, face_x_max, face_y_min,
     coord = np.array(coord)
     # dilation
     eye_frame = frame[
-              int(coord[2][1] / 128 * (face_y_max - face_y_min) * 0.7 + face_y_min): int(coord[3][1] / 128 * (face_y_max - face_y_min) * 1.1 + face_y_min),
-              int(coord[1][0] / 128 * (face_x_max - face_x_min) + face_x_min): int(coord[0][0] / 128 * (face_x_max - face_x_min) + face_x_min)
-              ]
-
+                int(coord[2][1] / 128 * (face_y_max - face_y_min) + face_y_min): int(coord[3][1] / 128 * (face_y_max - face_y_min) + face_y_min),
+                int(coord[1][0] / 128 * (face_x_max - face_x_min) + face_x_min): int(coord[0][0] / 128 * (face_x_max - face_x_min) + face_x_min)
+                ]
 
     return eye_frame
 
@@ -198,7 +206,8 @@ def corner_to_x_position(corner, cam, face_cascade, test_transforms, model, repe
         x_position.append(find_pupil_x_position(eye))
 
     x_position.sort()
-    x_position = x_position[repeat//3:-repeat//3]
+    # print("x_position_list = ", x_position)
+    x_position = x_position[repeat // 3:-repeat // 3]
     return sum(x_position) / len(x_position), sum(distance) / len(distance)
 
 
