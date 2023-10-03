@@ -2,6 +2,9 @@ import time
 import tkinter as tk
 import cv2
 import numpy as np
+import torch
+
+from triangulation import find_distance
 
 
 class ImageCollector(tk.Frame):
@@ -34,7 +37,7 @@ class ImageCollector(tk.Frame):
         self.close_button.pack()
 
 
-def take_corner_image(corner, camera_code):
+def take_corner_image(corner, camera_code, repeat):
     root = tk.Tk()
     image_collector = ImageCollector(root)
     match corner:
@@ -50,12 +53,15 @@ def take_corner_image(corner, camera_code):
 
     cam = cv2.VideoCapture(camera_code)
     time.sleep(0.2)
-    result, image = cam.read()
-    assert result, "Unable to connect to camera..."
-    assert sum(image[200][200]) > 0, "Image is totally dark"
-    # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # BGR to RGB
-    image = cv2.flip(image, 1)  # flip horizontally
-    return image
+    images = []
+    for i in range(repeat):
+        result, image = cam.read()
+        assert result, "Unable to connect to camera..."
+        assert sum(image[200][200]) > 0, "Image is totally dark"
+        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)  # BGR to RGB
+        image = cv2.flip(image, 1)  # flip horizontally
+        images.append(image)
+    return images
 
 
 def extract_face(frame, face_cascade, verbose=False):
@@ -136,7 +142,7 @@ def extract_face(frame, face_cascade, verbose=False):
 def find_pupil_x_position(eye_frame):
     cut_off_left = int(eye_frame.shape[1] * 0.3)
     box = eye_frame[:, cut_off_left:, 2]
-    pad = 0.06
+    pad = 0.1
     pad_left = int(box.shape[1] * pad)
     pad_right = pad_left
     box = np.pad(box, ((0, 0), (pad_left, pad_right)), 'maximum')
@@ -148,14 +154,14 @@ def find_pupil_x_position(eye_frame):
             thresh = i
             break
     ret, box = cv2.threshold(box, thresh, 255, cv2.THRESH_BINARY)
-
     binary_np = (np.array(box) == 0)
     vertical_accumulation = []
     window_half = int(binary_np.shape[1] * pad)
     for i in range(window_half, binary_np.shape[1] - window_half - 1):
         vertical_accumulation.append((binary_np[:, i - window_half: i + window_half]).sum())
 
-    x_coord_on_image = vertical_accumulation.index(max(vertical_accumulation)) + cut_off_left + window_half
+    a = vertical_accumulation.index(max(vertical_accumulation))
+    x_coord_on_image = a + cut_off_left
     x_position = x_coord_on_image / eye_frame.shape[1]
     return x_position
 
@@ -165,8 +171,42 @@ def keypoints_to_eye_frame(frame, keypoints, face_x_min, face_x_max, face_y_min,
     for i in range(4):
         coord.append([int(keypoints[2 * i] * 128), int(keypoints[2 * i + 1] * 128)])
     coord = np.array(coord)
+    # dilation
     eye_frame = frame[
-              int(coord[2][1] / 128 * (face_y_max - face_y_min) + face_y_min): int(coord[3][1] / 128 * (face_y_max - face_y_min) + face_y_min),
+              int(coord[2][1] / 128 * (face_y_max - face_y_min) * 0.7 + face_y_min): int(coord[3][1] / 128 * (face_y_max - face_y_min) * 1.1 + face_y_min),
               int(coord[1][0] / 128 * (face_x_max - face_x_min) + face_x_min): int(coord[0][0] / 128 * (face_x_max - face_x_min) + face_x_min)
               ]
+
+
     return eye_frame
+
+
+def corner_to_x_position(corner, cam, face_cascade, test_transforms, model, repeat):
+    x_position = []
+    distance = []
+    images = take_corner_image(corner=corner, camera_code=cam, repeat=repeat)
+    for image in images:
+        x_min, x_max, y_min, y_max = extract_face(frame=image, face_cascade=face_cascade)
+        distance.append(round(find_distance(image.shape[0], y_min, y_max)))
+
+        face = image[y_min: y_max, x_min: x_max, :]
+        face = test_transforms(image=face)["image"]
+        faces_corners = torch.tensor(face, dtype=torch.int16).permute([2, 0, 1]).unsqueeze(0).to('cpu')
+        with torch.no_grad():
+            keypoints = model(faces_corners)[0].numpy() * 2
+        eye = keypoints_to_eye_frame(image, keypoints, x_min, x_max, y_min, y_max)
+        x_position.append(find_pupil_x_position(eye))
+
+    x_position.sort()
+    x_position = x_position[repeat//3:-repeat//3]
+    return sum(x_position) / len(x_position), sum(distance) / len(distance)
+
+
+def stabilized_pointer(previous, current, n_average=2, stickiness=1.5, general_slowdown=0.3):  # decimal between 0 and 1
+    current = (previous * (n_average - 1) + current) / n_average
+    difference = abs(previous - current)
+    previous_weight = general_slowdown / (difference + 0.05) ** stickiness
+    previous_weight = previous_weight / (previous_weight + 1)
+    current_weight = 1 - previous_weight
+    output = previous * previous_weight + current * current_weight
+    return output
