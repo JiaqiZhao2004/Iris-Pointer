@@ -1,3 +1,4 @@
+import math
 import time
 
 import cv2
@@ -7,23 +8,27 @@ import albumentations as A
 import numpy as np
 import pyautogui as mouse
 from webcam_init import initialize_webcam
-from triangulation import find_distance, transform_x_window
+from triangulation import transform_x_window
 
+CAMERA = 0
 SHOW = True
 MODE = "eye"  # eye, face, eye_binary, full
 LINE = True
 SIDE = 128
-FACE_STABILIZATION = 2
-EYE_STABILIZATION = 20
+FACE_STABILIZATION = 1
+EYE_STABILIZATION = 1
 STICKINESS = 3
 GENERAL_SLOWDOWN = 0.001
 PUPIL_STABILIZATION = 2
+THETA_X = 40 / 180 * math.pi
+THETA_Y = 40 / 180 * math.pi
+REAL_HEAD_WIDTH = 16
 faceCascade = cv2.CascadeClassifier("haar_cascade_frontal_face_default.xml")
-
-face_coordinates, eye_coordinates, video_capture, model, x_position_mid, distance_mid = initialize_webcam(faceCascade, camera_mode=1)
+face_coordinates, eye_coordinates, video_capture, model, triangulator, x_position_mid, distance_mid = \
+    initialize_webcam(faceCascade, camera_mode=CAMERA, theta_x=THETA_X, theta_y=THETA_Y, real_head_width=REAL_HEAD_WIDTH)
 
 window = transform_x_window(distance=distance_mid)
-print("Window = {}, Mid = {}".format(round(window, 3), round(x_position_mid, 3)))
+print("Window = {}, Mid = {}, Distance init = {} cm".format(round(window, 3), round(x_position_mid, 3), round(distance_mid)))
 
 x_position_stable = 0.5
 test_transforms = A.Resize(height=128, width=128)
@@ -37,7 +42,7 @@ while True:
     new_frame_time = time.time()
     fps = 1 / (new_frame_time - prev_frame_time + 1e-6)
     prev_frame_time = new_frame_time
-    fps = int(fps)
+    fps = round(fps, 1)
     fps = str(fps)
 
     ret, frame = video_capture.read()
@@ -51,33 +56,53 @@ while True:
     x_max = face_coordinates[1]
     y_min = face_coordinates[2]
     y_max = face_coordinates[3]
-    face = frame[int(y_min): int(y_max), int(x_min): int(x_max)]
+    width = x_max - x_min
+    height = y_max - y_min
+    face = frame[int(y_min): int(y_max), int(x_min): int(x_max), :]
     face = test_transforms(image=face)["image"]
+    face_tensor = torch.tensor(face, dtype=torch.int16).permute([2, 0, 1]).unsqueeze(0).to('cpu')
+    with torch.no_grad():
+        keypoints = model(face_tensor)[0].numpy() * 2
+
+    coord = []
+    for i in range(4):
+        coord.append([int(keypoints[2 * i] * SIDE), int(keypoints[2 * i + 1] * SIDE)])
+
+    # stabilization: make eye detection an x-frame-average
+    eye_coordinates = eye_coordinates * (EYE_STABILIZATION - 1) / EYE_STABILIZATION
+    eye_coordinates += np.array(coord) / EYE_STABILIZATION
+    center_x = 0
+    center_y = 0
+    for row in eye_coordinates:
+        center_x += row[0]
+        center_y += row[1]
+    eye_center_x = center_x / 4 / 128 * width + x_min
+    eye_center_y = center_y / 4 / 128 * height + y_min
 
     # triangulation
-    distance = round(find_distance(frame.shape[0], y_min, y_max))
+    distance = round(triangulator.find_distance(y_min, y_max))
+    eye_displacement_x, eye_displacement_y = \
+        triangulator.find_eye_displacement(
+            eye_center_x=eye_center_x,
+            eye_center_y=eye_center_y,
+            y_min=y_min,
+            y_max=y_max
+        )
 
     x_left_margin = x_position_mid - window / 2
     x_right_margin = x_position_mid + window / 2
-    # print(x_window_default, x_window_transformed, x_left_margin, x_right_margin, distance)
-
-    with torch.no_grad():
-        face_tensor = torch.tensor(face, dtype=torch.float32).permute([2, 0, 1]).unsqueeze(0).to('cpu')
-        keypoints = model(face_tensor).numpy()[0] * 2
-        coord = []
-        for i in range(4):
-            coord.append([int(keypoints[2 * i] * SIDE), int(keypoints[2 * i + 1] * SIDE)])
-
-        # stabilization: make eye detection an x-frame-average
-        eye_coordinates = eye_coordinates * (EYE_STABILIZATION - 1) / EYE_STABILIZATION
-        eye_coordinates += np.array(coord) / EYE_STABILIZATION
 
     to_show = frame
-    text_board = np.zeros((250, 500))
+    text_board = np.zeros((300, 500))
     if MODE == "full":
         for i in range(4):
-            cv2.circle(frame, (int(eye_coordinates[i][0] / 128 * (x_max - x_min) + x_min), int(eye_coordinates[i][1] / 128 * (y_max - y_min) + y_min)), radius=3, color=(0, 0, 255),
-                       thickness=-1)
+            cv2.circle(
+                img=frame,
+                center=(int(eye_coordinates[i][0] / 128 * (x_max - x_min) + x_min), int(eye_coordinates[i][1] / 128 * (y_max - y_min) + y_min)),
+                radius=3,
+                color=(0, 0, 255),
+                thickness=-1
+            )
         cv2.rectangle(frame, (int(x_min), int(y_min)), (int(x_max), int(y_max)), (0, 0, 255), 1)
 
         cv2.putText(frame, "Distance=" + str(distance) + "cm", (int(x_min), int(y_min - 10)), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255))
@@ -116,44 +141,46 @@ while True:
 
     if LINE:
         assert MODE in ["eye"], "Line function only applicable in MODE = eye"
-        x_position = find_pupil_x_position(to_show)  # with respect to eye frame
-        current = (1 - (x_position - x_left_margin) / (x_right_margin - x_left_margin))  # with respect to box
-        # x_position_stable is with respect to box
+        x = find_pupil_x_position(to_show)  # with respect to eye frame
+        if x is not None:
+            x_position = x
+            current = (1 - (x_position - x_left_margin) / (x_right_margin - x_left_margin))  # with respect to box
+            # x_position_stable is with respect to box
 
-        x_on_screen = stabilized_pointer(
-            previous=x_position_stable, current=current, n_average=PUPIL_STABILIZATION,
-            stickiness=STICKINESS, general_slowdown=GENERAL_SLOWDOWN)
-        x_position_stable = x_on_screen
-        x_on_screen = round(min(mouse.size()[0], max(x_on_screen * mouse.size()[0], 0)))
+            x_on_screen = stabilized_pointer(
+                previous=x_position_stable, current=current, n_average=PUPIL_STABILIZATION,
+                stickiness=STICKINESS, general_slowdown=GENERAL_SLOWDOWN)
+            x_position_stable = x_on_screen
+            x_on_screen = round(min(mouse.size()[0], max(x_on_screen * mouse.size()[0], 0)))
 
-        if SHOW:
-            cv2.line(
-                to_show,
-                (int(x_position * to_show.shape[1]), 0),
-                (int(x_position * to_show.shape[1]), to_show.shape[0]),
-                (0, 255, 0),
-                1
-            )
-            cv2.line(
-                to_show,
-                (int(to_show.shape[1] * x_position_mid), 0),
-                (int(to_show.shape[1] * x_position_mid), to_show.shape[0]),
-                (0, 255, 0),
-                1
-            )
-            cv2.rectangle(
-                to_show,
-                (int(to_show.shape[1] * x_left_margin), 0),
-                (int(to_show.shape[1] * x_right_margin), to_show.shape[0]),
-                (0, 0, 255),
-                1
-            )
-            cv2.putText(text_board, "x=" + str(round(x_position_stable, 2)), (10, 50), font, 1, (255, 255, 255))
-            cv2.putText(text_board, "Distance=" + str(distance) + "cm", (10, 100), font, 1, (255, 255, 255))
-            cv2.putText(text_board, "Move to " + str(x_on_screen), (10, 150), font, 1, (255, 255, 255))
-            cv2.putText(text_board, fps, (10, 200), font, 1, (100, 255, 0))
-
-        mouse.moveTo(x_on_screen, None)
+            if SHOW:
+                cv2.line(
+                    to_show,
+                    (int(x_position * to_show.shape[1]), 0),
+                    (int(x_position * to_show.shape[1]), to_show.shape[0]),
+                    (0, 255, 0),
+                    1
+                )
+                cv2.line(
+                    to_show,
+                    (int(to_show.shape[1] * x_position_mid), 0),
+                    (int(to_show.shape[1] * x_position_mid), to_show.shape[0]),
+                    (0, 255, 0),
+                    1
+                )
+                cv2.rectangle(
+                    to_show,
+                    (int(to_show.shape[1] * x_left_margin), 0),
+                    (int(to_show.shape[1] * x_right_margin), to_show.shape[0]),
+                    (0, 0, 255),
+                    1
+                )
+                cv2.putText(text_board, "x=" + str(round(x_position_stable, 2)), (10, 50), font, 1, (255, 255, 255))
+                cv2.putText(text_board, "Distance=" + str(distance) + "cm", (10, 100), font, 1, (255, 255, 255))
+                cv2.putText(text_board, "Move to " + str(x_on_screen), (10, 150), font, 1, (255, 255, 255))
+                cv2.putText(text_board, fps, (10, 200), font, 1, (100, 255, 0))
+                cv2.putText(text_board, "Eye Displacement = ({}, {})".format(eye_displacement_x, eye_displacement_y), (10, 250), font, 1, (255, 255, 255))
+            mouse.moveTo(x_on_screen, None)
 
     if SHOW:
         cv2.imshow("Video", to_show)
