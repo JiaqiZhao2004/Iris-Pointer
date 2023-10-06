@@ -10,13 +10,13 @@ import pyautogui as mouse
 from webcam_init import initialize_webcam
 from triangulation import transform_x_window
 
-CAMERA = 0
+CAMERA = 1
 SHOW = True
 MODE = "eye"  # eye, face, eye_binary, full
 LINE = True
 SIDE = 128
-FACE_STABILIZATION = 1
-EYE_STABILIZATION = 1
+FACE_STABILIZATION = 2
+EYE_STABILIZATION = 20
 STICKINESS = 3
 GENERAL_SLOWDOWN = 0.001
 PUPIL_STABILIZATION = 2

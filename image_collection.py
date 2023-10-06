@@ -115,7 +115,7 @@ def find_pupil_x_position(eye_frame):
             thresh = i
             break
     # print(thresh)
-    if thresh > 90:
+    if thresh > 130:
         return None
     binary_np = (np.array(box) < thresh)
     vertical_accumulation = []
