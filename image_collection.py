@@ -101,22 +101,35 @@ def extract_face(frame, face_cascade, verbose=False):
     return 0, gray.shape[0], 0, gray.shape[1]
 
 
-def find_pupil_x_position(eye_frame):
-    cut_off_left = int(eye_frame.shape[1] * 0.15)
+def eye_frame_to_box(eye_frame, cut_off_left_percentage=0.25, pad=0.1):
+    cut_off_left = int(eye_frame.shape[1] * cut_off_left_percentage)
     box = eye_frame[:, cut_off_left:, 2]
-    pad = 0.1
     pad_left = int(box.shape[1] * pad)
     pad_right = pad_left
     box = np.pad(box, ((0, 0), (pad_left, pad_right)), 'maximum')
+    return box, cut_off_left, pad
+
+
+def find_thresh(box, max_dark_percentage=0.05):
+    # th2 = cv2.adaptiveThreshold(box, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
 
     thresh = 0
     for i in range(50, 255):
-        if (np.array(box) < i).sum() / (box.shape[0] * box.shape[1]) >= 0.10:
+        if (np.array(box) < i).sum() / (box.shape[0] * box.shape[1]) >= max_dark_percentage:
             thresh = i
             break
-    # print(thresh)
-    if thresh > 130:
+    if thresh > 80:
         return None
+    return thresh
+
+
+def find_pupil_x_position(eye_frame):
+    box, cut_off_left, pad = eye_frame_to_box(eye_frame)
+    thresh = find_thresh(box)
+
+    if thresh is None:
+        return None
+
     binary_np = (np.array(box) < thresh)
     vertical_accumulation = []
     window_half = int(binary_np.shape[1] * pad)
@@ -124,6 +137,7 @@ def find_pupil_x_position(eye_frame):
         left = i - window_half
         right = i + window_half
         vertical_accumulation.append((binary_np[:, left:right]).sum())
+
     x_coord_on_image = vertical_accumulation.index(max(vertical_accumulation))
     x_coord_on_image += window_half + cut_off_left
     x_position = x_coord_on_image / eye_frame.shape[1]

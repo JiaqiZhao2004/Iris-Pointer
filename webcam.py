@@ -2,7 +2,7 @@ import math
 import time
 
 import cv2
-from image_collection import extract_face, find_pupil_x_position, stabilized_pointer
+from image_collection import extract_face, find_pupil_x_position, stabilized_pointer, eye_frame_to_box, find_thresh
 import torch
 import albumentations as A
 import numpy as np
@@ -12,8 +12,8 @@ from triangulation import transform_x_window
 
 CAMERA = 1
 SHOW = True
-MODE = "eye"  # eye, face, eye_binary, full
-LINE = True
+MODE = "eye_binary"  # eye, face, eye_binary, full
+LINE = False
 SIDE = 128
 FACE_STABILIZATION = 2
 EYE_STABILIZATION = 20
@@ -128,14 +128,16 @@ while True:
                   int(eye_coordinates[1][0] / 128 * (x_max - x_min) + x_min): int(eye_coordinates[0][0] / 128 * (x_max - x_min) + x_min)
                   ]
             gray_eye = cv2.cvtColor(eye, cv2.COLOR_BGR2GRAY)
+            box, cut_off_left, pad = eye_frame_to_box(eye)
 
-            thresh = 0
-            for i in range(50, 255):
-                ret, binary = cv2.threshold(gray_eye, i, 255, cv2.THRESH_BINARY)
-                if ((np.array(binary) == 0) / (binary.shape[0] * binary.shape[1])).sum() >= 0.3:
-                    thresh = i
-                    break
+            thresh = find_thresh(box)
+
+            if thresh is None:
+                continue
+
             ret, to_show = cv2.threshold(gray_eye, thresh, 255, cv2.THRESH_BINARY)
+            # ret2, to_show = cv2.threshold(box, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
         except None:
             pass
 
@@ -184,7 +186,8 @@ while True:
 
     if SHOW:
         cv2.imshow("Video", to_show)
-        cv2.imshow("Text", text_board)
+        if LINE:
+            cv2.imshow("Text", text_board)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
