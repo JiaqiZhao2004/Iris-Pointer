@@ -107,10 +107,10 @@ def eye_frame_to_box(eye_frame, cut_off_left_percentage=0.25, pad=0.1):
     pad_left = int(box.shape[1] * pad)
     pad_right = pad_left
     box = np.pad(box, ((0, 0), (pad_left, pad_right)), 'maximum')
-    return box, cut_off_left, pad
+    return box, cut_off_left, pad_left
 
 
-def find_thresh(box, max_dark_percentage=0.05):
+def find_thresh(box, max_dark_percentage=0.2):
     # th2 = cv2.adaptiveThreshold(box, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)
 
     thresh = 0
@@ -118,8 +118,6 @@ def find_thresh(box, max_dark_percentage=0.05):
         if (np.array(box) < i).sum() / (box.shape[0] * box.shape[1]) >= max_dark_percentage:
             thresh = i
             break
-    if thresh > 80:
-        return None
     return thresh
 
 
@@ -127,21 +125,35 @@ def find_pupil_x_position(eye_frame):
     box, cut_off_left, pad = eye_frame_to_box(eye_frame)
     thresh = find_thresh(box)
 
-    if thresh is None:
-        return None
-
     binary_np = (np.array(box) < thresh)
-    vertical_accumulation = []
-    window_half = int(binary_np.shape[1] * pad)
-    for i in range(window_half, binary_np.shape[1] - window_half):
-        left = i - window_half
-        right = i + window_half
-        vertical_accumulation.append((binary_np[:, left:right]).sum())
 
-    x_coord_on_image = vertical_accumulation.index(max(vertical_accumulation))
-    x_coord_on_image += window_half + cut_off_left
+    # 1D after sum in the vertical direction
+    vertical_sum = binary_np.sum(0)
+
+    max_index = np.argmax(vertical_sum)
+    if vertical_sum[max_index] < eye_frame.shape[0] * 0.45:
+        return None
+    edge_criteria = 1
+
+    left_edge = 0
+    right_edge = 0
+
+    for i in range(max_index):
+        if vertical_sum[max_index - i] <= edge_criteria:
+            left_edge = max_index - i
+            break
+
+    for i in range(len(vertical_sum) - max_index):
+        if vertical_sum[max_index + i] <= edge_criteria:
+            right_edge = max_index + i
+            break
+
+    x_coord_on_image = (left_edge + right_edge) / 2
+    left_edge = (left_edge - pad + cut_off_left) / eye_frame.shape[1]
+    right_edge = (right_edge - pad + cut_off_left) / eye_frame.shape[1]
+    x_coord_on_image = x_coord_on_image - pad + cut_off_left
     x_position = x_coord_on_image / eye_frame.shape[1]
-    return x_position
+    return x_position, left_edge, right_edge
 
 
 def keypoints_to_eye_frame(frame, keypoints, face_x_min, face_x_max, face_y_min, face_y_max):
@@ -171,7 +183,10 @@ def corner_to_x_position(corner, cam, triangulator, face_cascade, test_transform
         with torch.no_grad():
             keypoints = model(faces_corners)[0].numpy() * 2
         eye = keypoints_to_eye_frame(image, keypoints, x_min, x_max, y_min, y_max)
-        x = find_pupil_x_position(eye)
+        try:
+            x, _, _ = find_pupil_x_position(eye)
+        except TypeError:
+            x = None
         if x is not None:
             x_position.append(x)
 

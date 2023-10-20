@@ -12,8 +12,11 @@ from triangulation import transform_x_window
 
 CAMERA = 1
 SHOW = True
-MODE = "eye_binary"  # eye, face, eye_binary, full
-LINE = False
+MODE = "eye"  # eye, face, eye_binary, full
+if MODE == "eye":
+    LINE = True
+else:
+    LINE = False
 SIDE = 128
 FACE_STABILIZATION = 2
 EYE_STABILIZATION = 20
@@ -127,7 +130,6 @@ while True:
                   int(eye_coordinates[2][1] / 128 * (y_max - y_min) + y_min): int(eye_coordinates[3][1] / 128 * (y_max - y_min) + y_min),
                   int(eye_coordinates[1][0] / 128 * (x_max - x_min) + x_min): int(eye_coordinates[0][0] / 128 * (x_max - x_min) + x_min)
                   ]
-            gray_eye = cv2.cvtColor(eye, cv2.COLOR_BGR2GRAY)
             box, cut_off_left, pad = eye_frame_to_box(eye)
 
             thresh = find_thresh(box)
@@ -135,7 +137,7 @@ while True:
             if thresh is None:
                 continue
 
-            ret, to_show = cv2.threshold(gray_eye, thresh, 255, cv2.THRESH_BINARY)
+            ret, to_show = cv2.threshold(eye[:, :, 2], thresh, 255, cv2.THRESH_BINARY)
             # ret2, to_show = cv2.threshold(box, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         except None:
@@ -143,8 +145,8 @@ while True:
 
     if LINE:
         assert MODE in ["eye"], "Line function only applicable in MODE = eye"
-        x = find_pupil_x_position(to_show)  # with respect to eye frame
-        if x is not None:
+        try:
+            x, left_edge, right_edge = find_pupil_x_position(to_show)  # with respect to eye frame
             x_position = x
             current = (1 - (x_position - x_left_margin) / (x_right_margin - x_left_margin))  # with respect to box
             # x_position_stable is with respect to box
@@ -156,6 +158,7 @@ while True:
             x_on_screen = round(min(mouse.size()[0], max(x_on_screen * mouse.size()[0], 0)))
 
             if SHOW:
+                # x position
                 cv2.line(
                     to_show,
                     (int(x_position * to_show.shape[1]), 0),
@@ -163,26 +166,39 @@ while True:
                     (0, 255, 0),
                     1
                 )
-                cv2.line(
-                    to_show,
-                    (int(to_show.shape[1] * x_position_mid), 0),
-                    (int(to_show.shape[1] * x_position_mid), to_show.shape[0]),
-                    (0, 255, 0),
-                    1
-                )
+                # eye left and right edges
                 cv2.rectangle(
                     to_show,
-                    (int(to_show.shape[1] * x_left_margin), 0),
-                    (int(to_show.shape[1] * x_right_margin), to_show.shape[0]),
+                    (int(left_edge * to_show.shape[1]), 0),
+                    (int(right_edge * to_show.shape[1]), to_show.shape[0]),
                     (0, 0, 255),
                     1
                 )
+                # # eye move frame
+                # cv2.rectangle(
+                #     to_show,
+                #     (int(to_show.shape[1] * x_left_margin), 0),
+                #     (int(to_show.shape[1] * x_right_margin), to_show.shape[0]),
+                #     (0, 0, 255),
+                #     1
+                # )
+                # # eye move frame mid
+                # cv2.line(
+                #     to_show,
+                #     (int(to_show.shape[1] * x_position_mid), 0),
+                #     (int(to_show.shape[1] * x_position_mid), to_show.shape[0]),
+                #     (0, 255, 0),
+                #     1
+                # )
+
                 cv2.putText(text_board, "x=" + str(round(x_position_stable, 2)), (10, 50), font, 1, (255, 255, 255))
                 cv2.putText(text_board, "Distance=" + str(distance) + "cm", (10, 100), font, 1, (255, 255, 255))
                 cv2.putText(text_board, "Move to " + str(x_on_screen), (10, 150), font, 1, (255, 255, 255))
                 cv2.putText(text_board, fps, (10, 200), font, 1, (100, 255, 0))
                 cv2.putText(text_board, "Eye Displacement = ({}, {})".format(eye_displacement_x, eye_displacement_y), (10, 250), font, 1, (255, 255, 255))
             mouse.moveTo(x_on_screen, None)
+        except TypeError:
+            pass
 
     if SHOW:
         cv2.imshow("Video", to_show)
