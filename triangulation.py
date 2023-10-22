@@ -1,6 +1,14 @@
 import math
 
 
+def calibrate_x(distance, eye_displacement, screen_width=31, el=0.21, er=0.21):
+    left_edge = -((1 - (el + er)) / 2) / (math.sqrt((distance ** 2 / (-screen_width / 2 - eye_displacement) ** 2) + 1)) + 0.5
+    right_edge = ((1 - (el + er)) / 2) / (math.sqrt((distance ** 2 / (screen_width / 2 - eye_displacement) ** 2) + 1)) + 0.5
+    return left_edge, right_edge
+
+
+
+
 class Triangulation(object):
     def __init__(self, frame_w, frame_h, theta_x, theta_y, real_head_width=16):
         self.frame_w = frame_w
